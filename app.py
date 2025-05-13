@@ -260,14 +260,56 @@ def generate_html_report(log, eee_val, components):
     <html>
     <head>
     <style>
-      body {{ font-family: 'Segoe UI', sans-serif; line-height: 1.6; padding: 20px; color: #333; }}
-      h2 {{ color: #1f4e79; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; }}
-      ul {{ list-style-type: disc; margin-left: 1em; }}
-      .responses {{ margin-left: 1em; }}
-      table {{ border-collapse: collapse; width: 60%; margin-top: 10px; }}
-      th, td {{ border: 1px solid #ddd; padding: 8px; }}
-      th {{ background-color: #f2f2f2; text-align: left; }}
-      .section {{ margin-bottom: 2em; }}
+          body {
+            font-family: 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            color: #f4f4f4;
+            background-color: transparent;
+          }
+          h1 {
+            color: #ffffff;
+            font-size: 28px;
+            margin-bottom: 0.5em;
+          }
+          h2 {
+            color: #4FC3F7;
+            border-bottom: 1px solid #666;
+            padding-bottom: 0.2em;
+            margin-top: 1.5em;
+          }
+          h3 {
+            color: #90CAF9;
+          }
+          p, li {
+            color: #e0e0e0;
+            font-size: 16px;
+          }
+          ul {
+            list-style-type: disc;
+            margin-left: 1.2em;
+          }
+          .responses {
+            margin-left: 1em;
+            margin-bottom: 1em;
+          }
+          table {
+            border-collapse: collapse;
+            width: 80%;
+            margin-top: 10px;
+            color: #e0e0e0;
+          }
+          th, td {
+            border: 1px solid #888;
+            padding: 8px;
+          }
+          th {
+            background-color: #2d2d2d;
+            color: #ffffff;
+          }
+          .section {
+            margin-bottom: 2em;
+          }
     </style>
     </head>
     <body>
