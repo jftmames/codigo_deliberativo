@@ -176,8 +176,8 @@ def generate_responses(tree: dict, mode: str) -> dict:
 
 # modules/adaptive_dialogue.py
 
-from langchain import PromptTemplate, LLMChain
-from langchain.llms import OpenAI
+# (removed langchain dependency)
+# (removed langchain dependency)
 import json
 
 ADAPTIVE_PROMPT = PromptTemplate(
@@ -227,4 +227,5 @@ def calculate_eee(tracker):
     rev = len(log.get('focus',[]))
     d_norm, p_norm, r_norm = min(prof/5,1), min(plural/3,1), min(rev/2,1)
     return mean([d_norm,p_norm,r_norm])
+
 
