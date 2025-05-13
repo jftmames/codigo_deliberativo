@@ -208,6 +208,61 @@ def calc_eee(root_node, responses, focus):
 
 eee = calc_eee(root, responses, focus_suggestions)
 st.metric("EEE", f"{eee} / 1.00")
+# —————————————————————————————————————————
+# 7. Extras: modos de visualización y desglose de métricas
+# —————————————————————————————————————————
+
+st.header("6. Modos de Visualización y Métricas Detalladas ⚙️")
+
+# 6.1. Alternar vista de grafo/texto
+view_mode = st.radio(
+    "Modo de vista del árbol de indagación:",
+    ("Grafo (predeterminado)", "Listado anidado")
+)
+
+if view_mode == "Listado anidado":
+    st.subheader("Listado Anidado del Árbol")
+    def render_list(node, indent=0):
+        st.markdown(" " * indent * 2 + f"- **{node.get('node')}**")
+        for c in node.get("children", []):
+            render_list(c, indent + 1)
+    render_list(root)
+else:
+    st.subheader("Grafo de Indagación")
+    st.graphviz_chart(dot, use_container_width=True)
+
+# 6.2. Desglose de EEE en sus dimensiones
+# Recalculamos componentes
+def calc_eee_components(root_node, responses, focus):
+    # Profundidad
+    def depth(n):
+        return 1 + max((depth(c) for c in n.get("children", [])), default=0)
+    prof = depth(root_node)
+    # Pluralidad
+    avg_resp = sum(len(v) for v in responses.values()) / max(len(responses),1)
+    # Reversibilidad
+    rev = len(focus)
+    # Normalizaciones
+    d = min(prof/5,1)
+    p = min(avg_resp/3,1)
+    r = min(rev/2,1)
+    return {"Profundidad": round(d, 2), "Pluralidad": round(p, 2), "Reversibilidad": round(r, 2)}
+
+components = calc_eee_components(root, responses, focus_suggestions)
+components["EEE"] = eee  # añadimos el valor global
+
+# Mostrar tabla de métricas
+st.subheader("Métricas de Calidad Epistémica")
+st.table(components.items())
+
+# Mostrar bar chart
+st.subheader("Gráfico de Componentes del EEE")
+import pandas as pd
+df = pd.DataFrame.from_dict(components, orient="index", columns=["Valor"]).drop("EEE")
+st.bar_chart(df)
+
+# Finalmente, el EEE agregado
+st.markdown(f"**Índice EEE global:** {eee} / 1.00")
 
 # Botón de descarga
 st.download_button(
