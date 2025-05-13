@@ -1,38 +1,45 @@
 # modules/adaptive_dialogue.py
 
-from langchain import PromptTemplate, LLMChain
-from langchain.llms import OpenAI
+import os
+import json
+import openai
 
-# Plantilla para sugerir reformulación del foco de indagación
-ADAPTIVE_PROMPT = PromptTemplate(
-    input_variables=["tree_json", "mode"],
-    template="""
-Eres un Motor de Diálogo Adaptativo para IA deliberativa.
-Has procesado el siguiente árbol de indagación (JSON):
-{tree_json}
-
-Modo de usuario: {mode}
-
-1. Identifica si hay nodos con alto grado de ambigüedad o falta de profundización.
-2. Si es necesario, sugiere hasta dos reformulaciones de la pregunta raíz o de subpreguntas,
-   para profundizar o clarificar el análisis.
-3. Devuelve un JSON:
-[
-  {{ "original": "Pregunta original o nodo", "suggestions": ["Reformulación 1", "Reformulación 2"] }}
-]
-Si no hay sugerencias, devuelve [].
-"""
-)
-
-_llm = OpenAI(temperature=0.7, max_tokens=300)
+# Configura tu clave de OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def adapt_focus(tree: dict, mode: str) -> list:
     """
-    Analiza el árbol y sugiere reformulaciones de foco.
+    Analiza el árbol de indagación y sugiere hasta dos reformulaciones
+    si detecta ambigüedad o falta de profundidad.
     """
-    import json
-    chain = LLMChain(llm=_llm, prompt=ADAPTIVE_PROMPT)
-    tree_json = json.dumps(tree, ensure_ascii=False)
-    result = chain.run(tree_json=tree_json, mode=mode)
-    suggestions = json.loads(result)
+    prompt = f"""
+Eres un Motor de Diálogo Adaptativo para IA deliberativa.
+Árbol de indagación (JSON):
+{json.dumps(tree, ensure_ascii=False)}
+
+Modo de usuario: {mode}
+
+1. Identifica si hay nodos con alto grado de ambigüedad o poca profundización.
+2. Sugiere hasta **dos** reformulaciones de la pregunta raíz o de alguna subpregunta.
+3. Devuelve tu respuesta **solo** en formato JSON así:
+
+[
+  {{
+    "original": "Texto de la pregunta original",
+    "suggestions": ["Reformulación 1", "Reformulación 2"]
+  }}
+]
+Si no hay nada que sugerir, devuelve `[]`.
+"""
+    resp = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "system", "content": prompt}],
+        temperature=0.7,
+        max_tokens=300
+    )
+    try:
+        suggestions = json.loads(resp.choices[0].message.content)
+    except json.JSONDecodeError:
+        suggestions = []
     return suggestions
+
