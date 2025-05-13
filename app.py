@@ -73,7 +73,7 @@ if root_question:
         mime="application/json"
     )
 
-inquiry_engine.py
+
 
 import openai
 import os
@@ -104,5 +104,6 @@ def generate_inquiry_tree(root_question: str, mode: str) -> dict:
     )
     content = response.choices[0].message.content
     return json.loads(content)
+
 
 
