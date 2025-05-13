@@ -14,6 +14,18 @@ def generate_responses(tree: dict, mode: str) -> dict:
     """
     responses = {}
 
+    # Detectar raíz del árbol
+    if isinstance(tree, list) and tree:
+        root = tree[0]
+    elif isinstance(tree, dict):
+        root = tree
+    else:
+        return responses
+
+    def recurse(node):
+        prompt = f\"\"\"\nEres un Generador Contextual de IA deliberativa.\nNodo: '{node['node']}'\nModo de usuario: {mode}\n\nProporciona tres respuestas argumentadas:\n1. Perspectiva ética.\n2. Perspectiva histórica.\n3. Perspectiva crítica.\n\nResponde **solo** en formato JSON así:\n\n{{\n  \"node\": \"{node['node']}\",\n  \"responses\": [\n    {{\"label\": \"Ética\", \"text\": \"...\"}},\n    {{\"label\": \"Histórica\", \"text\": \"...\"}},\n    {{\"label\": \"Crítica\", \"text\": \"...\"}}\n  ]\n}}\n\"\"\"\n           resp = openai.chat.completions.create(\n               model=\"gpt-3.5-turbo\",\n               messages=[{\"role\": \"system\", \"content\": prompt}],\n               temperature=0.7,\n               max_tokens=600\n           )\n           try:\n               data = json.loads(resp.choices[0].message.content)\n           except json.JSONDecodeError:\n               data = {\"responses\": []}\n           responses[node['node']] = data.get(\"responses\", [])\n           for child in node.get(\"children\", []):\n               recurse(child)\n\n       recurse(root)\n       return responses
+
+
     def recurse(node):
         prompt = f"""
 Eres un Generador Contextual de IA deliberativa.
