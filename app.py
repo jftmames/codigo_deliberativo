@@ -105,24 +105,4 @@ def generate_inquiry_tree(root_question: str, mode: str) -> dict:
     content = response.choices[0].message.content
     return json.loads(content)
 
-# modules/epistemic_navigator.py
 
-import streamlit as st
-import json
-
-def visualize_tree(tree: dict):
-    """
-    Dibuja el árbol de indagación usando Graphviz de Streamlit.
-    """
-    def build_dot(node):
-        edges = ""
-        for child in node.get("children", []):
-            edges += '"{}" -> "{}";
-'.format(node['node'], child['node'])
-            edges += build_dot(child)
-        return edges
-
-    dot_body = build_dot(tree[0])
-    dot = f"digraph G {{
-{dot_body}}}"
-    st.graphviz_chart(dot)
