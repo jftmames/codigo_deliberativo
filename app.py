@@ -128,32 +128,49 @@ def visualize_tree(tree: dict):
 
 # modules/contextual_generator.py
 
-from langchain import PromptTemplate, LLMChain
-from langchain.llms import OpenAI
+import os
 import json
+import openai
 
-CONTEXTUAL_PROMPT = PromptTemplate(
-    input_variables=["node","mode"],
-    template="""
+# Configurar clave API
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Prompt para generar respuestas desde múltiples marcos teóricos
+CONTEXTUAL_PROMPT = '''
 Eres un Generador Contextual de IA deliberativa.
-Nodo: "{node}"
+Nodo: '{node}'
 Modo: {mode}
 
-1. Da 3 respuestas argumentadas: ética, histórica, crítica.
-2. Devuelve JSON con 'label' y 'text'.
-"""
-)
+Proporciona **tres** respuestas argumentadas:
+1. Perspectiva ética.
+2. Perspectiva histórica.
+3. Perspectiva crítica.
 
-_llm = OpenAI(temperature=0.7, max_tokens=600)
+Responde **solo** en formato JSON:
+{
+  "node": "{node}",
+  "responses": [
+    {"label": "Ética", "text": "..."},
+    {"label": "Histórica", "text": "..."},
+    {"label": "Crítica", "text": "..."}
+  ]
+}
+'''
 
 def generate_responses(tree: dict, mode: str) -> dict:
-    chain = LLMChain(llm=_llm, prompt=CONTEXTUAL_PROMPT)
     responses = {}
     def recurse(node):
-        res = chain.run(node=node["node"], mode=mode)
-        data = json.loads(res)
-        responses[node["node"]] = data["responses"]
-        for c in node.get("children",[]): recurse(c)
+        prompt = CONTEXTUAL_PROMPT.format(node=node["node"], mode=mode)
+        resp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "system", "content": prompt}],
+            temperature=0.7,
+            max_tokens=600
+        )
+        data = json.loads(resp.choices[0].message.content)
+        responses[node["node"]] = data.get("responses", [])
+        for child in node.get("children", []):
+            recurse(child)
     recurse(tree[0])
     return responses
 
