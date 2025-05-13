@@ -114,9 +114,13 @@ def visualize_tree(tree: dict):
     """
     Dibuja el árbol de indagación usando Graphviz de Streamlit.
     """
-    # Generar DOT de forma recursiva
     def build_dot(node):
         edges = ""
         for child in node.get("children", []):
-                                                edges += '"{}" -> \"{}\";
-'.format(node['node'], child['node'])
+            edges += '"{}" -> "{}";\n'.format(node['node'], child['node'])
+            edges += build_dot(child)
+        return edges
+
+    dot_body = build_dot(tree[0])
+    dot = f"digraph G {{\n{dot_body}}}"
+    st.graphviz_chart(dot)
