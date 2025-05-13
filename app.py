@@ -235,3 +235,100 @@ st.download_button(
 )
 st.balloons()
 
+import streamlit.components.v1 as components
+
+# ——————————————————————————————————————————————
+# HTML enriquecido del informe deliberativo
+# ——————————————————————————————————————————————
+
+st.header("📄 Informe Detallado en Formato HTML")
+
+def render_html_tree(node):
+    html = f"<li><strong>{node.get('node','')}</strong>"
+    children = node.get("children", [])
+    if children:
+        html += "<ul>"
+        for c in children:
+            html += render_html_tree(c)
+        html += "</ul>"
+    html += "</li>"
+    return html
+
+def generate_html_report(log, eee_val, components):
+    root = log["inquiry"][0] if isinstance(log["inquiry"], list) else log["inquiry"]
+    html = f"""
+    <html>
+    <head>
+    <style>
+      body {{ font-family: 'Segoe UI', sans-serif; line-height: 1.6; padding: 20px; color: #333; }}
+      h2 {{ color: #1f4e79; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; }}
+      ul {{ list-style-type: disc; margin-left: 1em; }}
+      .responses {{ margin-left: 1em; }}
+      table {{ border-collapse: collapse; width: 60%; margin-top: 10px; }}
+      th, td {{ border: 1px solid #ddd; padding: 8px; }}
+      th {{ background-color: #f2f2f2; text-align: left; }}
+      .section {{ margin-bottom: 2em; }}
+    </style>
+    </head>
+    <body>
+      <h1>Informe de Indagación Crítica - Código Deliberativo</h1>
+
+      <div class="section">
+        <h2>1. Pregunta Raíz</h2>
+        <p>{log['root']}</p>
+      </div>
+
+      <div class="section">
+        <h2>2. Árbol de Subpreguntas</h2>
+        <ul>{render_html_tree(root)}</ul>
+      </div>
+
+      <div class="section">
+        <h2>3. Respuestas Contextualizadas</h2>
+    """
+
+    for nodo, resp_list in log["responses"].items():
+        html += f'<div class="responses"><strong>{nodo}</strong><ul>'
+        for r in resp_list:
+            html += f'<li><em>{r["label"]}:</em> {r["text"]}</li>'
+        html += "</ul></div>"
+
+    html += """
+      </div>
+      <div class="section">
+        <h2>4. Reformulaciones Sugeridas</h2>
+    """
+
+    if log["focus"]:
+        html += "<ul>"
+        for f in log["focus"]:
+            html += f'<li><strong>{f["original"]}</strong><ul>'
+            for s in f["suggestions"]:
+                html += f"<li>{s}</li>"
+            html += "</ul></li>"
+        html += "</ul>"
+    else:
+        html += "<p>No se sugirieron reformulaciones.</p>"
+
+    html += """
+      </div>
+      <div class="section">
+        <h2>5. Métricas Epistémicas (EEE)</h2>
+        <table>
+          <tr><th>Dimensión</th><th>Valor</th></tr>
+    """
+    for k, v in components.items():
+        html += f"<tr><td>{k}</td><td>{v}</td></tr>"
+    html += f"""
+          <tr><td><strong>EEE Global</strong></td><td><strong>{eee_val}</strong></td></tr>
+        </table>
+      </div>
+    </body>
+    </html>
+    """
+    return html
+
+# Calculamos métricas desglosadas para la tabla
+eee_components = calc_eee_components(root, responses, focus_suggestions)
+html_final = generate_html_report(log, eee, eee_components)
+components.html(html_final, height=800, scrolling=True)
