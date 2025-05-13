@@ -78,6 +78,60 @@ if root_question:
 import openai
 import os
 import json
+import openai
+
+# modules/contextual_generator.py
+# Configura tu clave de OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def generate_responses(tree, mode):
+    responses = {}
+
+    # Detectar raíz
+    if isinstance(tree, list) and tree:
+        root = tree[0]
+    elif isinstance(tree, dict):
+        root = tree
+    else:
+        return responses
+
+    def recurse(node):
+        prompt = (
+            "Eres un Generador Contextual de IA deliberativa.
+"
+            f"Nodo: '{node['node']}'
+"
+            f"Modo de usuario: {mode}
+
+"
+            "Proporciona tres respuestas argumentadas:
+"
+            "1. Perspectiva ética.
+"
+            "2. Perspectiva histórica.
+"
+            "3. Perspectiva crítica.
+
+"
+            "Responde solo en formato JSON con las claves 'node' y 'responses'."
+        )
+        resp = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "system", "content": prompt}],
+            temperature=0.7,
+            max_tokens=600
+        )
+        try:
+            data = json.loads(resp.choices[0].message.content)
+        except Exception:
+            data = {"responses": []}
+        responses[node['node']] = data.get("responses", [])
+        for child in node.get("children", []):
+            recurse(child)
+
+    recurse(root)
+    return responses
+import json
 
 # Configurar API Key
 openai.api_key = os.getenv("OPENAI_API_KEY")
