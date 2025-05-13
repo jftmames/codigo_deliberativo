@@ -1,29 +1,31 @@
 # modules/epistemic_navigator.py
 
 import streamlit as st
-import networkx as nx
-from networkx.drawing.nx_agraph import graphviz_layout
 
-def visualize_tree(tree: dict):
+def visualize_tree(tree):
     """
-    Dibuja el árbol de indagación usando NetworkX y Graphviz,
-    y lo muestra en Streamlit.
+    Dibuja el árbol de indagación usando Graphviz de Streamlit.
+    Admite tanto dict como lista de dicts.
     """
-    G = nx.DiGraph()
+    # Determinar el nodo raíz
+    if isinstance(tree, list) and len(tree) > 0:
+        root = tree[0]
+    elif isinstance(tree, dict):
+        root = tree
+    else:
+        st.error("Formato de árbol de indagación inválido.")
+        return
 
-    def add_nodes_edges(node):
-        G.add_node(node["node"])
+    def build_dot(node):
+        edges = ""
+        # Cada nodo debe tener la clave "node" y opcionalmente "children"
+        node_label = node.get("node", "<unknown>")
         for child in node.get("children", []):
-            G.add_node(child["node"])
-            G.add_edge(node["node"], child["node"])
-            add_nodes_edges(child)
+            child_label = child.get("node", "<unknown>")
+            edges += f"\"{node_label}\" -> \"{child_label}\";\n"
+            edges += build_dot(child)
+        return edges
 
-    # Asumimos que `tree` es una lista con un único elemento raíz
-    add_nodes_edges(tree[0])
-
-    pos = graphviz_layout(G, prog="dot")
-    # Dibujamos sobre matplotlib
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(8, 6))
-    nx.draw(G, pos, with_labels=True, arrows=True, ax=ax)
-    st.pyplot(fig)
+    dot_body = build_dot(root)
+    dot = f"digraph G {{\n{dot_body}}}"
+    st.graphviz_chart(dot)
