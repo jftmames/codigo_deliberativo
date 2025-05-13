@@ -118,6 +118,16 @@ def build_dot(node):
 root = inquiry_tree[0] if isinstance(inquiry_tree, list) else inquiry_tree
 dot = f"digraph G {{\n{build_dot(root)}}}"
 st.graphviz_chart(dot, use_container_width=True)
+# … después de st.graphviz_chart(dot, use_container_width=True)
+
+# Mostrar expander con la lista de subpreguntas
+st.subheader("📋 Ver todas las subpreguntas")
+with st.expander("Mostrar subpreguntas en formato de lista"):
+    def render_list(node, indent=0):
+        st.markdown(" " * indent * 2 + f"- **{node.get('node', '<sin título>')}**")
+        for c in node.get("children", []):
+            render_list(c, indent + 1)
+    render_list(root)
 
 # —————————————————————————————————————————
 # 5. Paso 2: Generar respuestas argumentadas
