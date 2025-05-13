@@ -73,7 +73,7 @@ if root_question:
         mime="application/json"
     )
 
-# modules/inquiry_engine.py
+inquiry_engine.py
 
 import openai
 import os
@@ -126,4 +126,3 @@ def visualize_tree(tree: dict):
     dot = f"digraph G {{
 {dot_body}}}"
     st.graphviz_chart(dot)
-
