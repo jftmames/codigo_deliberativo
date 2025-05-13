@@ -1,9 +1,9 @@
-# app.py
-
 import os
 import json
 import streamlit as st
 import openai
+import pandas as pd
+import streamlit.components.v1 as components
 
 # 0. Configuración de página
 st.set_page_config(
@@ -45,8 +45,6 @@ st.markdown(
 
 # 3. Entrada de la pregunta con ejemplos por defecto
 st.header("1. Define tu pregunta raíz")
-
-# Ejemplos disponibles
 example_questions = [
     "¿Es ético el uso de IA en diagnósticos médicos?",
     "¿Deberían las redes sociales regular cierto tipo de contenido?",
@@ -54,10 +52,8 @@ example_questions = [
     "¿Es sostenible el modelo económico actual?",
     "¿Debe implementarse la renta básica universal?"
 ]
-
 st.markdown("🔍 **Selecciona un ejemplo** o escribe tu propia pregunta:")
 selected_example = st.selectbox("Ejemplos de preguntas", ["— Ninguno —"] + example_questions)
-
 if selected_example != "— Ninguno —":
     root_question = selected_example
     st.markdown(f"**Pregunta seleccionada:** {root_question}")
@@ -67,11 +63,9 @@ else:
         placeholder="Ej. ¿Es ético el uso de IA en diagnósticos médicos?",
         help="Puedes usar uno de los ejemplos o escribir la tuya."
     )
-
 if not root_question:
     st.warning("🛈 Necesitamos una pregunta raíz para continuar.")
     st.stop()
-
 
 # Prepara OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -83,9 +77,7 @@ def chat(messages, max_tokens=500):
         max_tokens=max_tokens,
     )
 
-# —————————————————————————————————————————
 # 4. Paso 1: Generar árbol de indagación
-# —————————————————————————————————————————
 st.header("2. Generación de Subpreguntas 🔍")
 with st.spinner("Creando árbol de indagación…"):
     inquiry_prompt = (
@@ -118,9 +110,8 @@ def build_dot(node):
 root = inquiry_tree[0] if isinstance(inquiry_tree, list) else inquiry_tree
 dot = f"digraph G {{\n{build_dot(root)}}}"
 st.graphviz_chart(dot, use_container_width=True)
-# … después de st.graphviz_chart(dot, use_container_width=True)
 
-# Mostrar expander con la lista de subpreguntas
+# Expander con lista de subpreguntas
 st.subheader("📋 Ver todas las subpreguntas")
 with st.expander("Mostrar subpreguntas en formato de lista"):
     def render_list(node, indent=0):
@@ -129,12 +120,9 @@ with st.expander("Mostrar subpreguntas en formato de lista"):
             render_list(c, indent + 1)
     render_list(root)
 
-# —————————————————————————————————————————
 # 5. Paso 2: Generar respuestas argumentadas
-# —————————————————————————————————————————
 st.header("3. Respuestas Contextualizadas 💬")
 responses = {}
-
 def recurse_responses(node):
     prompt = (
         "Eres un Generador Contextual de IA deliberativa.\n"
@@ -157,16 +145,12 @@ def recurse_responses(node):
 
 with st.spinner("Generando respuestas…"):
     recurse_responses(root)
-
-# Mostrar
 for node, resp_list in responses.items():
     st.markdown(f"**{node}**")
     for item in resp_list:
         st.write(f"- **{item['label']}**: {item['text']}")
 
-# —————————————————————————————————————————
-# 6. Paso 3: Sugerencias de reformulación
-# —————————————————————————————————————————
+# 6. Paso 3: Reformulación de foco
 st.header("4. Reformulación de Foco 🔄")
 focus_suggestions = []
 with st.spinner("Analizando reformulaciones…"):
@@ -192,86 +176,58 @@ if focus_suggestions:
 else:
     st.success("No se necesitan reformulaciones.")
 
-# —————————————————————————————————————————
 # 7. Paso 4: EEE y descarga
-# —————————————————————————————————————————
 st.header("5. Índice de Equilibrio Erotético (EEE) & Informe 📥")
-# Construye el log
 log = {
     "root": root_question,
     "inquiry": inquiry_tree,
     "responses": responses,
     "focus": focus_suggestions,
 }
-
-# Calcula EEE
 def calc_eee(root_node, responses, focus):
     def depth(n):
         return 1 + max((depth(c) for c in n.get("children", [])), default=0)
     prof = depth(root_node)
     avg_resp = sum(len(v) for v in responses.values()) / max(len(responses),1)
     rev = len(focus)
-    d = min(prof/5,1)
-    p = min(avg_resp/3,1)
-    r = min(rev/2,1)
+    d, p, r = min(prof/5,1), min(avg_resp/3,1), min(rev/2,1)
     return round((d+p+r)/3, 2)
 
 eee = calc_eee(root, responses, focus_suggestions)
 st.metric("EEE", f"{eee} / 1.00")
-# —————————————————————————————————————————
-# 7. Extras: modos de visualización y desglose de métricas
-# —————————————————————————————————————————
 
+# Extras: modos de visualización y desglose
 st.header("6. Modos de Visualización y Métricas Detalladas ⚙️")
-
-# 6.1. Alternar vista de grafo/texto
 view_mode = st.radio(
     "Modo de vista del árbol de indagación:",
     ("Grafo (predeterminado)", "Listado anidado")
 )
-
 if view_mode == "Listado anidado":
     st.subheader("Listado Anidado del Árbol")
-    def render_list(node, indent=0):
-        st.markdown(" " * indent * 2 + f"- **{node.get('node')}**")
-        for c in node.get("children", []):
-            render_list(c, indent + 1)
     render_list(root)
 else:
     st.subheader("Grafo de Indagación")
     st.graphviz_chart(dot, use_container_width=True)
 
-# 6.2. Desglose de EEE en sus dimensiones
-# Recalculamos componentes
 def calc_eee_components(root_node, responses, focus):
-    # Profundidad
     def depth(n):
         return 1 + max((depth(c) for c in n.get("children", [])), default=0)
     prof = depth(root_node)
-    # Pluralidad
     avg_resp = sum(len(v) for v in responses.values()) / max(len(responses),1)
-    # Reversibilidad
     rev = len(focus)
-    # Normalizaciones
-    d = min(prof/5,1)
-    p = min(avg_resp/3,1)
-    r = min(rev/2,1)
-    return {"Profundidad": round(d, 2), "Pluralidad": round(p, 2), "Reversibilidad": round(r, 2)}
+    return {
+        "Profundidad": round(min(prof/5,1),2),
+        "Pluralidad": round(min(avg_resp/3,1),2),
+        "Reversibilidad": round(min(rev/2,1),2)
+    }
 
 components = calc_eee_components(root, responses, focus_suggestions)
-components["EEE"] = eee  # añadimos el valor global
-
-# Mostrar tabla de métricas
+components["EEE"] = eee
 st.subheader("Métricas de Calidad Epistémica")
 st.table(components.items())
-
-# Mostrar bar chart
 st.subheader("Gráfico de Componentes del EEE")
-import pandas as pd
 df = pd.DataFrame.from_dict(components, orient="index", columns=["Valor"]).drop("EEE")
 st.bar_chart(df)
-
-# Finalmente, el EEE agregado
 st.markdown(f"**Índice EEE global:** {eee} / 1.00")
 
 # Botón de descarga
@@ -282,15 +238,9 @@ st.download_button(
     mime="application/json"
 )
 
-import streamlit.components.v1 as components
-
-# —————————————————————————————————————————
 # 8. Informe detallado en HTML
-# —————————————————————————————————————————
 st.header("📄 Informe Detallado (HTML)")
-
 def render_html_tree(node):
-    """Genera HTML recursivo para el árbol de indagación."""
     html = f"<li><strong>{node.get('node','')}</strong>"
     children = node.get("children", [])
     if children:
@@ -302,20 +252,25 @@ def render_html_tree(node):
     return html
 
 def generate_html_report(log):
-    root = log["inquiry"][0] if isinstance(log["inquiry"], list) else log["inquiry"]
-    html = """
+    raw = log["inquiry"]
+    root_node = raw[0] if isinstance(raw, list) else raw
+    tree_html = render_html_tree(root_node)
+    comps = calc_eee_components(root_node, log["responses"], log["focus"])
+    comps["EEE"] = eee
+
+    html = f"""
     <style>
-      .section { margin-bottom: 1.5em; }
-      .section h3 { color: #2E86AB; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; }
-      .section ul { list-style-type: disc; margin-left: 1em; }
-      .responses { margin-left: 1em; }
-      .metric-table { border-collapse: collapse; width: 50%; }
-      .metric-table th, .metric-table td { border: 1px solid #ddd; padding: 8px; }
-      .metric-table th { background-color: #f2f2f2; }
+      .section {{ margin-bottom: 1.5em; }}
+      .section h3 {{ color: #2E86AB; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; }}
+      .section ul {{ list-style-type: disc; margin-left: 1em; }}
+      .responses {{ margin-left: 1em; }}
+      .metric-table {{ border-collapse: collapse; width: 50%; }}
+      .metric-table th, .metric-table td {{ border: 1px solid #ddd; padding: 8px; }}
+      .metric-table th {{ background-color: #f2f2f2; }}
     </style>
     <div class="section">
       <h3>1. Pregunta Raíz</h3>
-      <p>{root_question}</p>
+      <p>{log["root"]}</p>
     </div>
     <div class="section">
       <h3>2. Árbol de Indagación</h3>
@@ -326,13 +281,11 @@ def generate_html_report(log):
     <div class="section">
       <h3>3. Respuestas Contextualizadas</h3>
     """
-    # Arma el HTML para respuestas
     for nodo, resp_list in log["responses"].items():
         html += f'<div class="responses"><strong>{nodo}</strong><ul>'
         for r in resp_list:
             html += f'<li><em>{r["label"]}:</em> {r["text"]}</li>'
         html += "</ul></div>"
-    # Reformulaciones
     html += """
     </div>
     <div class="section">
@@ -348,9 +301,6 @@ def generate_html_report(log):
         html += "</ul>"
     else:
         html += "<p>No se sugirieron reformulaciones.</p>"
-    # Métricas
-    comps = calc_eee_components(root, log["responses"], log["focus"])
-    comps["EEE"] = eee
     html += """
     </div>
     <div class="section">
@@ -364,10 +314,7 @@ def generate_html_report(log):
       </table>
     </div>
     """
-    return html.format(
-      root_question=log["root"],
-      tree_html=render_html_tree(root)
-    )
+    return html
 
 html_report = generate_html_report(log)
 components.html(html_report, height=700, scrolling=True)
