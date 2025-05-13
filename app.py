@@ -118,12 +118,6 @@ def visualize_tree(tree: dict):
     def build_dot(node):
         edges = ""
         for child in node.get("children", []):
-            edges += f'"{node["node"]}" -> "{child["node"]}";
-'
+                        edges += f"\"{node['node']}\" -> \"{child['node']}\";
+"
             edges += build_dot(child)
-        return edges
-
-    dot_body = build_dot(tree[0])
-    dot = f"digraph G {{
-{dot_body}}}"
-    st.graphviz_chart(dot)
