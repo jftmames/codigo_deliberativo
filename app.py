@@ -136,9 +136,10 @@ import openai
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Prompt para generar respuestas desde múltiples marcos teóricos
-CONTEXTUAL_PROMPT = '''
+def generate_responses(tree: dict, mode: str) -> dict:
+    CONTEXTUAL_PROMPT = f"""
 Eres un Generador Contextual de IA deliberativa.
-Nodo: '{node}'
+Nodo: '{'{node}'}'
 Modo: {mode}
 
 Proporciona **tres** respuestas argumentadas:
@@ -147,17 +148,15 @@ Proporciona **tres** respuestas argumentadas:
 3. Perspectiva crítica.
 
 Responde **solo** en formato JSON:
-{
+{{
   "node": "{node}",
   "responses": [
-    {"label": "Ética", "text": "..."},
-    {"label": "Histórica", "text": "..."},
-    {"label": "Crítica", "text": "..."}
+    {{"label": "Ética", "text": "..."}},
+    {{"label": "Histórica", "text": "..."}},
+    {{"label": "Crítica", "text": "..."}}
   ]
-}
-'''
-
-def generate_responses(tree: dict, mode: str) -> dict:
+}}
+"""
     responses = {}
     def recurse(node):
         prompt = CONTEXTUAL_PROMPT.format(node=node["node"], mode=mode)
@@ -167,7 +166,10 @@ def generate_responses(tree: dict, mode: str) -> dict:
             temperature=0.7,
             max_tokens=600
         )
-        data = json.loads(resp.choices[0].message.content)
+        try:
+            data = json.loads(resp.choices[0].message.content)
+        except json.JSONDecodeError:
+            data = {}
         responses[node["node"]] = data.get("responses", [])
         for child in node.get("children", []):
             recurse(child)
@@ -175,6 +177,34 @@ def generate_responses(tree: dict, mode: str) -> dict:
     return responses
 
 # modules/adaptive_dialogue.py
+
+import os
+import json
+import openai
+
+# Configurar clave API
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def adapt_focus(tree: dict, mode: str) -> list:
+    ADAPTIVE_PROMPT = f"""
+Eres Motor de Diálogo Adaptativo.
+Árbol: {json.dumps(tree)}
+Modo: {mode}
+
+Sugiere hasta dos reformulaciones de foco si hay ambigüedad.
+Responde en JSON: [{{ 'original':'', 'suggestions':['',''] }}]
+"""
+    resp = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "system", "content": ADAPTIVE_PROMPT}],
+        temperature=0.7,
+        max_tokens=300
+    )
+    try:
+        suggestions = json.loads(resp.choices[0].message.content)
+    except json.JSONDecodeError:
+        suggestions = []
+    return suggestions
 
 # (removed langchain dependency)
 # (removed langchain dependency)
@@ -227,5 +257,3 @@ def calculate_eee(tracker):
     rev = len(log.get('focus',[]))
     d_norm, p_norm, r_norm = min(prof/5,1), min(plural/3,1), min(rev/2,1)
     return mean([d_norm,p_norm,r_norm])
-
-
