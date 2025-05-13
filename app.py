@@ -282,5 +282,95 @@ st.download_button(
     mime="application/json"
 )
 
+import streamlit.components.v1 as components
+
+# —————————————————————————————————————————
+# 8. Informe detallado en HTML
+# —————————————————————————————————————————
+st.header("📄 Informe Detallado (HTML)")
+
+def render_html_tree(node):
+    """Genera HTML recursivo para el árbol de indagación."""
+    html = f"<li><strong>{node.get('node','')}</strong>"
+    children = node.get("children", [])
+    if children:
+        html += "<ul>"
+        for c in children:
+            html += render_html_tree(c)
+        html += "</ul>"
+    html += "</li>"
+    return html
+
+def generate_html_report(log):
+    root = log["inquiry"][0] if isinstance(log["inquiry"], list) else log["inquiry"]
+    html = """
+    <style>
+      .section { margin-bottom: 1.5em; }
+      .section h3 { color: #2E86AB; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; }
+      .section ul { list-style-type: disc; margin-left: 1em; }
+      .responses { margin-left: 1em; }
+      .metric-table { border-collapse: collapse; width: 50%; }
+      .metric-table th, .metric-table td { border: 1px solid #ddd; padding: 8px; }
+      .metric-table th { background-color: #f2f2f2; }
+    </style>
+    <div class="section">
+      <h3>1. Pregunta Raíz</h3>
+      <p>{root_question}</p>
+    </div>
+    <div class="section">
+      <h3>2. Árbol de Indagación</h3>
+      <ul>
+        {tree_html}
+      </ul>
+    </div>
+    <div class="section">
+      <h3>3. Respuestas Contextualizadas</h3>
+    """
+    # Arma el HTML para respuestas
+    for nodo, resp_list in log["responses"].items():
+        html += f'<div class="responses"><strong>{nodo}</strong><ul>'
+        for r in resp_list:
+            html += f'<li><em>{r["label"]}:</em> {r["text"]}</li>'
+        html += "</ul></div>"
+    # Reformulaciones
+    html += """
+    </div>
+    <div class="section">
+      <h3>4. Reformulaciones Sugeridas</h3>
+    """
+    if log["focus"]:
+        html += "<ul>"
+        for f in log["focus"]:
+            html += f'<li><strong>{f["original"]}</strong><ul>'
+            for s in f["suggestions"]:
+                html += f"<li>{s}</li>"
+            html += "</ul></li>"
+        html += "</ul>"
+    else:
+        html += "<p>No se sugirieron reformulaciones.</p>"
+    # Métricas
+    comps = calc_eee_components(root, log["responses"], log["focus"])
+    comps["EEE"] = eee
+    html += """
+    </div>
+    <div class="section">
+      <h3>5. Métricas Epistémicas</h3>
+      <table class="metric-table">
+        <tr><th>Componente</th><th>Valor</th></tr>
+    """
+    for k, v in comps.items():
+        html += f"<tr><td>{k}</td><td>{v}</td></tr>"
+    html += """
+      </table>
+    </div>
+    """
+    return html.format(
+      root_question=log["root"],
+      tree_html=render_html_tree(root)
+    )
+
+html_report = generate_html_report(log)
+components.html(html_report, height=700, scrolling=True)
+
 # 🎉 Celebración
 st.balloons()
