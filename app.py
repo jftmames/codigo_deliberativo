@@ -3,7 +3,6 @@ import json
 import streamlit as st
 import openai
 import pandas as pd
-import streamlit.components.v1 as components
 
 # 0. Configuración de página
 st.set_page_config(
@@ -12,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 1. Barra lateral – Introducción y ajustes
+# 1. Barra lateral – Ajustes
 st.sidebar.header("🔧 Ajustes")
 st.sidebar.markdown(
     """
@@ -43,7 +42,7 @@ st.markdown(
     """
 )
 
-# 3. Entrada de la pregunta con ejemplos por defecto
+# 3. Entrada de la pregunta con ejemplos
 st.header("1. Define tu pregunta raíz")
 example_questions = [
     "¿Es ético el uso de IA en diagnósticos médicos?",
@@ -77,7 +76,7 @@ def chat(messages, max_tokens=500):
         max_tokens=max_tokens,
     )
 
-# 4. Paso 1: Generar árbol de indagación
+# 4. Generación de Subpreguntas
 st.header("2. Generación de Subpreguntas 🔍")
 with st.spinner("Creando árbol de indagación…"):
     inquiry_prompt = (
@@ -96,7 +95,7 @@ with st.spinner("Creando árbol de indagación…"):
         st.error("❌ No se pudo interpretar la respuesta del modelo.")
         st.stop()
 
-# Renderiza con Graphviz
+# Visualización con Graphviz
 st.subheader("Árbol de Indagación")
 def build_dot(node):
     edges = ""
@@ -120,7 +119,7 @@ with st.expander("Mostrar subpreguntas en formato de lista"):
             render_list(c, indent + 1)
     render_list(root)
 
-# 5. Paso 2: Generar respuestas argumentadas
+# 5. Respuestas Contextualizadas
 st.header("3. Respuestas Contextualizadas 💬")
 responses = {}
 def recurse_responses(node):
@@ -150,7 +149,7 @@ for node, resp_list in responses.items():
     for item in resp_list:
         st.write(f"- **{item['label']}**: {item['text']}")
 
-# 6. Paso 3: Reformulación de foco
+# 6. Reformulación de Foco
 st.header("4. Reformulación de Foco 🔄")
 focus_suggestions = []
 with st.spinner("Analizando reformulaciones…"):
@@ -176,7 +175,7 @@ if focus_suggestions:
 else:
     st.success("No se necesitan reformulaciones.")
 
-# 7. Paso 4: EEE y descarga
+# 7. Índice EEE & descarga
 st.header("5. Índice de Equilibrio Erotético (EEE) & Informe 📥")
 log = {
     "root": root_question,
@@ -196,17 +195,15 @@ def calc_eee(root_node, responses, focus):
 eee = calc_eee(root, responses, focus_suggestions)
 st.metric("EEE", f"{eee} / 1.00")
 
-# Extras: modos de visualización y desglose
+# Extras: modos de visualización y métricas detalladas
 st.header("6. Modos de Visualización y Métricas Detalladas ⚙️")
 view_mode = st.radio(
-    "Modo de vista del árbol de indagación:",
+    "Modo de vista del árbol:",
     ("Grafo (predeterminado)", "Listado anidado")
 )
 if view_mode == "Listado anidado":
-    st.subheader("Listado Anidado del Árbol")
     render_list(root)
 else:
-    st.subheader("Grafo de Indagación")
     st.graphviz_chart(dot, use_container_width=True)
 
 def calc_eee_components(root_node, responses, focus):
@@ -228,96 +225,13 @@ st.table(components.items())
 st.subheader("Gráfico de Componentes del EEE")
 df = pd.DataFrame.from_dict(components, orient="index", columns=["Valor"]).drop("EEE")
 st.bar_chart(df)
-st.markdown(f"**Índice EEE global:** {eee} / 1.00")
 
-# Botón de descarga
+# Botón de descarga y celebración
 st.download_button(
     label="⬇️ Descargar informe",
     data=json.dumps(log, ensure_ascii=False, indent=2),
     file_name="informe_deliberativo.json",
     mime="application/json"
 )
-
-# 8. Informe detallado en HTML
-st.header("📄 Informe Detallado (HTML)")
-def render_html_tree(node):
-    html = f"<li><strong>{node.get('node','')}</strong>"
-    children = node.get("children", [])
-    if children:
-        html += "<ul>"
-        for c in children:
-            html += render_html_tree(c)
-        html += "</ul>"
-    html += "</li>"
-    return html
-
-def generate_html_report(log):
-    raw = log["inquiry"]
-    root_node = raw[0] if isinstance(raw, list) else raw
-    tree_html = render_html_tree(root_node)
-    comps = calc_eee_components(root_node, log["responses"], log["focus"])
-    comps["EEE"] = eee
-
-    html = f"""
-    <style>
-      .section {{ margin-bottom: 1.5em; }}
-      .section h3 {{ color: #2E86AB; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; }}
-      .section ul {{ list-style-type: disc; margin-left: 1em; }}
-      .responses {{ margin-left: 1em; }}
-      .metric-table {{ border-collapse: collapse; width: 50%; }}
-      .metric-table th, .metric-table td {{ border: 1px solid #ddd; padding: 8px; }}
-      .metric-table th {{ background-color: #f2f2f2; }}
-    </style>
-    <div class="section">
-      <h3>1. Pregunta Raíz</h3>
-      <p>{log["root"]}</p>
-    </div>
-    <div class="section">
-      <h3>2. Árbol de Indagación</h3>
-      <ul>
-        {tree_html}
-      </ul>
-    </div>
-    <div class="section">
-      <h3>3. Respuestas Contextualizadas</h3>
-    """
-    for nodo, resp_list in log["responses"].items():
-        html += f'<div class="responses"><strong>{nodo}</strong><ul>'
-        for r in resp_list:
-            html += f'<li><em>{r["label"]}:</em> {r["text"]}</li>'
-        html += "</ul></div>"
-    html += """
-    </div>
-    <div class="section">
-      <h3>4. Reformulaciones Sugeridas</h3>
-    """
-    if log["focus"]:
-        html += "<ul>"
-        for f in log["focus"]:
-            html += f'<li><strong>{f["original"]}</strong><ul>'
-            for s in f["suggestions"]:
-                html += f"<li>{s}</li>"
-            html += "</ul></li>"
-        html += "</ul>"
-    else:
-        html += "<p>No se sugirieron reformulaciones.</p>"
-    html += """
-    </div>
-    <div class="section">
-      <h3>5. Métricas Epistémicas</h3>
-      <table class="metric-table">
-        <tr><th>Componente</th><th>Valor</th></tr>
-    """
-    for k, v in comps.items():
-        html += f"<tr><td>{k}</td><td>{v}</td></tr>"
-    html += """
-      </table>
-    </div>
-    """
-    return html
-
-html_report = generate_html_report(log)
-components.html(html_report, height=700, scrolling=True)
-
-# 🎉 Celebración
 st.balloons()
+
