@@ -43,15 +43,35 @@ st.markdown(
     """
 )
 
-# 3. Entrada de la pregunta
-root_question = st.text_input(
-    "1. Pregunta raíz",
-    placeholder="Ej. ¿Es ético el uso de IA en diagnósticos médicos?",
-    help="Formula aquí el tema o problema que quieres explorar."
-)
+# 3. Entrada de la pregunta con ejemplos por defecto
+st.header("1. Define tu pregunta raíz")
+
+# Ejemplos disponibles
+example_questions = [
+    "¿Es ético el uso de IA en diagnósticos médicos?",
+    "¿Deberían las redes sociales regular cierto tipo de contenido?",
+    "¿Cómo impacta la automatización en el mercado laboral juvenil?",
+    "¿Es sostenible el modelo económico actual?",
+    "¿Debe implementarse la renta básica universal?"
+]
+
+st.markdown("🔍 **Selecciona un ejemplo** o escribe tu propia pregunta:")
+selected_example = st.selectbox("Ejemplos de preguntas", ["— Ninguno —"] + example_questions)
+
+if selected_example != "— Ninguno —":
+    root_question = selected_example
+    st.markdown(f"**Pregunta seleccionada:** {root_question}")
+else:
+    root_question = st.text_input(
+        "Escribe tu pregunta aquí",
+        placeholder="Ej. ¿Es ético el uso de IA en diagnósticos médicos?",
+        help="Puedes usar uno de los ejemplos o escribir la tuya."
+    )
+
 if not root_question:
-    st.warning("Por favor, escribe una *pregunta raíz* para continuar.")
+    st.warning("🛈 Necesitamos una pregunta raíz para continuar.")
     st.stop()
+
 
 # Prepara OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY")
