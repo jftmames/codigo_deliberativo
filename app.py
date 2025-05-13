@@ -94,7 +94,7 @@ Responde en formato JSON.
 '''
 
 def generate_inquiry_tree(root_question: str, mode: str) -> dict:
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": INQUIRY_PROMPT.format(question=root_question, mode=mode)}
@@ -117,10 +117,13 @@ def visualize_tree(tree: dict):
     def build_dot(node):
         edges = ""
         for child in node.get("children", []):
-            edges += '"{}" -> "{}";\n'.format(node['node'], child['node'])
+            edges += '"{}" -> "{}";
+'.format(node['node'], child['node'])
             edges += build_dot(child)
         return edges
 
     dot_body = build_dot(tree[0])
-    dot = f"digraph G {{\n{dot_body}}}"
+    dot = f"digraph G {{
+{dot_body}}}"
     st.graphviz_chart(dot)
+
