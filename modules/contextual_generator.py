@@ -23,44 +23,41 @@ def generate_responses(tree: dict, mode: str) -> dict:
         return responses
 
     def recurse(node):
-        prompt = f\"\"\"\nEres un Generador Contextual de IA deliberativa.\nNodo: '{node['node']}'\nModo de usuario: {mode}\n\nProporciona tres respuestas argumentadas:\n1. Perspectiva ética.\n2. Perspectiva histórica.\n3. Perspectiva crítica.\n\nResponde **solo** en formato JSON así:\n\n{{\n  \"node\": \"{node['node']}\",\n  \"responses\": [\n    {{\"label\": \"Ética\", \"text\": \"...\"}},\n    {{\"label\": \"Histórica\", \"text\": \"...\"}},\n    {{\"label\": \"Crítica\", \"text\": \"...\"}}\n  ]\n}}\n\"\"\"\n           resp = openai.chat.completions.create(\n               model=\"gpt-3.5-turbo\",\n               messages=[{\"role\": \"system\", \"content\": prompt}],\n               temperature=0.7,\n               max_tokens=600\n           )\n           try:\n               data = json.loads(resp.choices[0].message.content)\n           except json.JSONDecodeError:\n               data = {\"responses\": []}\n           responses[node['node']] = data.get(\"responses\", [])\n           for child in node.get(\"children\", []):\n               recurse(child)\n\n       recurse(root)\n       return responses
+        # Construimos el prompt concatenando cadenas para evitar errores de comillas
+        prompt = (
+            "Eres un Generador Contextual de IA deliberativa.\n"
+            f"Nodo: '{node['node']}'\n"
+            f"Modo de usuario: {mode}\n\n"
+            "Proporciona tres respuestas argumentadas:\n"
+            "1. Perspectiva ética.\n"
+            "2. Perspectiva histórica.\n"
+            "3. Perspectiva crítica.\n\n"
+            "Responde solo en formato JSON así:\n"
+            "{\n"
+            f'  "node": "{node["node"]}",\n'
+            "  \"responses\": [\n"
+            "    {\"label\": \"Ética\", \"text\": \"...\"},\n"
+            "    {\"label\": \"Histórica\", \"text\": \"...\"},\n"
+            "    {\"label\": \"Crítica\", \"text\": \"...\"}\n"
+            "  ]\n"
+            "}"
+        )
 
-
-    def recurse(node):
-        prompt = f"""
-Eres un Generador Contextual de IA deliberativa.
-Nodo: '{node['node']}'
-Modo de usuario: {mode}
-
-Proporciona tres respuestas argumentadas:
-1. Perspectiva ética.
-2. Perspectiva histórica.
-3. Perspectiva crítica.
-
-Responde **solo** en formato JSON así:
-
-{{
-  "node": "{node['node']}",
-  "responses": [
-    {{"label": "Ética", "text": "..."}},
-    {{"label": "Histórica", "text": "..."}},
-    {{"label": "Crítica", "text": "..."}}
-  ]
-}}
-"""
-        resp = openai.ChatCompletion.create(
+        # Llamada usando la API v1
+        resp = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "system", "content": prompt}],
             temperature=0.7,
-            max_tokens=600
+            max_tokens=600,
         )
         try:
             data = json.loads(resp.choices[0].message.content)
-        except json.JSONDecodeError:
+        except (KeyError, json.JSONDecodeError):
             data = {"responses": []}
+
         responses[node["node"]] = data.get("responses", [])
         for child in node.get("children", []):
             recurse(child)
 
-    recurse(tree[0])
+    recurse(root)
     return responses
