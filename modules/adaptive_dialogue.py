@@ -29,7 +29,8 @@ Modo de usuario: {mode}
     "suggestions": ["Reformulación 1", "Reformulación 2"]
   }}
 ]
-Si no hay nada que sugerir, devuelve `[]`.
+
+Si no hay nada que sugerir, devuelve [].
 """
     resp = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -42,4 +43,3 @@ Si no hay nada que sugerir, devuelve `[]`.
     except json.JSONDecodeError:
         suggestions = []
     return suggestions
-
