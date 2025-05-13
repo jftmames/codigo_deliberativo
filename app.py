@@ -118,5 +118,5 @@ def visualize_tree(tree: dict):
     def build_dot(node):
         edges = ""
         for child in node.get("children", []):
-                                    edges += '"{}" -> "{}";
+                                                edges += '"{}" -> \"{}\";
 '.format(node['node'], child['node'])
