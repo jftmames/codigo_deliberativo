@@ -34,7 +34,7 @@ st.sidebar.info("Grupo de Investigación en IA.")
 if st.sidebar.button("🔄 Nuevo razonamiento / Reset"):
     for k in list(st.session_state.keys()):
         del st.session_state[k]
-    st.experimental_rerun()
+    st.rerun()
 
 # ---- 2. Título principal ----
 st.title("🧠 Código Deliberativo para Pensamiento Crítico")
