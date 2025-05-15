@@ -3,6 +3,7 @@ import json
 import streamlit as st
 import openai
 from modules.reasoning_tracker import ReasoningTracker
+from modules.html_exporter import generate_html_report
 
 # ---- 0. Configuración de página ----
 st.set_page_config(
@@ -18,7 +19,7 @@ mode = st.sidebar.selectbox(
     ["Asistido (básico)", "Guiado (intermedio)", "Exploratorio (avanzado)"]
 )
 st.sidebar.markdown("---")
-st.sidebar.info("Grupo de investigación de IA.")
+st.sidebar.info("Asegúrate de haber configurado tu variable de entorno `OPENAI_API_KEY`.")
 
 # ---- 2. Título principal ----
 st.title("🧠 Código Deliberativo para Pensamiento Crítico")
@@ -81,7 +82,7 @@ def generate_trees(root_question, chat_fn):
             f"Pregunta raíz: “{root_question}”\n"
             "1. Identifica 3–5 subpreguntas necesarias para el análisis crítico.\n"
             "2. Organízalas en estructura jerárquica.\n"
-            "Devuelve solo JSON: { 'node': '...', 'children': [ ... ] }"
+            "Devuelve solo JSON: {{ 'node': '...', 'children': [ ... ] }}"
         )
         resp = chat_fn([{"role": "system", "content": prompt}], max_tokens=600)
         try:
@@ -202,9 +203,15 @@ if "respuestas_multiperspectiva" in st.session_state:
 
 # ---- 11. Exportación y visualización de Reasoning Tracker ----
 st.header("3. Exporta y revisa tu proceso deliberativo")
-if st.button("Exportar proceso deliberativo"):
-    razonamiento = st.session_state["tracker"].export()
-    st.download_button("Descargar razonamiento (JSON)", razonamiento, file_name="razonamiento.json")
+razonamiento = st.session_state["tracker"].export()
+st.download_button("Descargar razonamiento (JSON)", razonamiento, file_name="razonamiento.json")
+
+import io
+if st.button("Descargar informe deliberativo en HTML"):
+    html_content = generate_html_report(st.session_state["tracker"].log)
+    st.download_button("Descargar informe (HTML)", data=html_content, file_name="informe_deliberativo.html", mime="text/html")
 
 if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
+
+st.info("Esta versión integra deliberación plural, trazabilidad y exportación HTML enriquecida. Puedes seguir con feedback plural, EEE o colaboración si lo deseas.")
