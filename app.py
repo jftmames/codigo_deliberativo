@@ -2,6 +2,10 @@ import os
 import json
 import streamlit as st
 import openai
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+
 from modules.reasoning_tracker import ReasoningTracker
 from modules.html_exporter import generate_html_report
 
@@ -21,7 +25,6 @@ mode = st.sidebar.selectbox(
 st.sidebar.markdown("---")
 st.sidebar.info("Grupo de Investigación en IA.")
 
-# ---- Opcional: Botón para reset total manual ----
 if st.sidebar.button("🔄 Nuevo razonamiento / Reset"):
     for k in list(st.session_state.keys()):
         del st.session_state[k]
@@ -299,5 +302,101 @@ if st.button("Descargar informe deliberativo en HTML"):
 if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
 
-st.info("Versión en construcción: ahora con estados epistémicos, feedback plural, colores y emojis en el árbol deliberativo.")
+# ---- DASHBOARD EEE ----
+st.header("4. Índice de Equilibrio Erotético (EEE) y Dashboard Epistémico")
 
+def calcular_eee(tracker):
+    log = tracker.log
+    root = log.get("inquiry", {})
+    steps = log.get("steps", [])
+    feedback = log.get("feedback", {})
+    node_states = log.get("node_states", {})
+
+    # Profundidad estructural: máxima profundidad del árbol
+    def depth(n):
+        if not n or not isinstance(n, dict):
+            return 0
+        return 1 + max([depth(child) for child in n.get("children", [])] or [0])
+    profundidad = depth(root) if root else 0
+    norm_prof = min(profundidad / 6, 1)
+
+    # Pluralidad semántica: nº de respuestas por nodo promedio
+    resp = log.get("responses", {})
+    pluralidad = np.mean([len(lst) for lst in resp.values()]) if resp else 0
+    norm_plur = min(pluralidad / 3, 1)
+
+    # Trazabilidad razonadora: nº de pasos/logs
+    trazabilidad = len(steps)
+    norm_traz = min(trazabilidad / 12, 1)
+
+    # Reversibilidad efectiva: nº de nodos revisitados o cambiados de estado
+    cambios_estado = sum([1 for s in steps if s["event_type"] in ["estado_modificado", "reformulacion"]])
+    norm_rev = min((cambios_estado + 1) / (profundidad + 1), 1) if profundidad else 0
+
+    # Robustez ante disenso: nº de nodos marcados 'En disputa'
+    disputas = sum(1 for v in node_states.values() if v.get("state") == "En disputa")
+    total_nodos = len(node_states) if node_states else 1
+    norm_rob = min(disputas / total_nodos, 1) if total_nodos else 0
+
+    eee = round(np.mean([norm_prof, norm_plur, norm_traz, norm_rev, norm_rob]), 3)
+
+    return {
+        "EEE Global": eee,
+        "Profundidad estructural": round(norm_prof, 2),
+        "Pluralidad semántica": round(norm_plur, 2),
+        "Trazabilidad razonadora": round(norm_traz, 2),
+        "Reversibilidad efectiva": round(norm_rev, 2),
+        "Robustez ante disenso": round(norm_rob, 2),
+        "Profundidad bruta": profundidad,
+        "Pasos razonamiento": trazabilidad,
+        "Nodos en disputa": disputas
+    }
+
+eee_dict = calcular_eee(st.session_state["tracker"])
+st.metric("EEE Global", f"{eee_dict['EEE Global']} / 1.00")
+st.write("**Desglose de dimensiones:**")
+st.table([
+    ["Profundidad estructural", eee_dict["Profundidad estructural"]],
+    ["Pluralidad semántica", eee_dict["Pluralidad semántica"]],
+    ["Trazabilidad razonadora", eee_dict["Trazabilidad razonadora"]],
+    ["Reversibilidad efectiva", eee_dict["Reversibilidad efectiva"]],
+    ["Robustez ante disenso", eee_dict["Robustez ante disenso"]]
+])
+
+fig = go.Figure()
+dimensiones = [
+    "Profundidad estructural",
+    "Pluralidad semántica",
+    "Trazabilidad razonadora",
+    "Reversibilidad efectiva",
+    "Robustez ante disenso"
+]
+valores = [eee_dict[dim] for dim in dimensiones]
+fig.add_trace(go.Scatterpolar(
+    r=valores + [valores[0]],
+    theta=dimensiones + [dimensiones[0]],
+    fill='toself',
+    name='EEE'
+))
+fig.update_layout(
+    polar=dict(radialaxis=dict(visible=True, range=[0, 1])),
+    showlegend=False,
+    margin=dict(l=0, r=0, t=40, b=0)
+)
+st.plotly_chart(fig, use_container_width=True)
+
+with st.expander("¿Qué significa cada dimensión del EEE?"):
+    st.markdown("""
+    - **Profundidad estructural**: ¿Qué tan ramificado y profundo es el árbol de indagación?
+    - **Pluralidad semántica**: ¿Cuántas perspectivas/dimensiones se exploran realmente por pregunta?
+    - **Trazabilidad razonadora**: ¿Cuánto registro y justificación hay de los pasos y decisiones?
+    - **Reversibilidad efectiva**: ¿Se revisan/corrigen/ajustan decisiones, o todo va en línea recta?
+    - **Robustez ante disenso**: ¿Cuánto disenso real aparece y se reconoce en el proceso?
+    """)
+
+if eee_dict['EEE Global'] < 0.7:
+    st.warning("Tu proceso deliberativo puede mejorar. Prueba a ampliar la profundidad, explorar más perspectivas o revisar/discutir más subpreguntas.")
+else:
+    st.success("¡Excelente equilibrio epistémico! Sigue manteniendo diversidad, profundidad y trazabilidad en tus deliberaciones.")
+
+st.info("Versión en construcción: ahora con dashboard EEE, estados epistémicos, feedback plural y visualización enriquecida.")
