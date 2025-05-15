@@ -52,7 +52,7 @@ if not root_question:
     st.warning("🛈 Necesitamos una pregunta raíz para continuar.")
     st.stop()
 
-# ---- 4. Inicializa Reasoning Tracker (debe ir después de definir root_question) ----
+# ---- 4. Inicializa Reasoning Tracker ----
 if "tracker" not in st.session_state:
     st.session_state["tracker"] = ReasoningTracker(root_question)
 
@@ -99,34 +99,51 @@ st.header("2. Explora los árboles desde diferentes perspectivas")
 marco = st.selectbox("Elige perspectiva de análisis", list(trees.keys()))
 st.subheader(f"Árbol de subpreguntas ({marco})")
 
-def build_dot(node):
-    edges = ""
-    label = node.get("node", "<sin etiqueta>")
-    for child in node.get("children", []):
-        c_label = child.get("node", "<sin etiqueta>")
-        edges += f"\"{label}\" -> \"{c_label}\";\n"
-        edges += build_dot(child)
-    return edges
+# --- MODIFICACIÓN: función para mostrar estado epistémico en listado ---
+def render_list(node, indent=0):
+    node_name = node.get('node', '<sin título>')
+    node_state = st.session_state["tracker"].log.get("node_states", {}).get(node_name, {}).get("state", "Abierta")
+    emoji = {"Abierta":"🟢", "Resuelta":"🔵", "En disputa":"🟠", "Suspendida":"⚪"}.get(node_state,"🟢")
+    st.markdown(" " * indent * 2 + f"- {emoji} **{node_name}**")
+    for c in node.get("children", []):
+        render_list(c, indent + 1)
 
 root = trees[marco]
 dot = f"digraph G {{\n{build_dot(root)}}}"
 st.graphviz_chart(dot, use_container_width=True)
 
-# Listado anidado
 with st.expander("Mostrar subpreguntas en formato de lista"):
-    def render_list(node, indent=0):
-        st.markdown(" " * indent * 2 + f"- **{node.get('node', '<sin título>')}**")
-        for c in node.get("children", []):
-            render_list(c, indent + 1)
     render_list(root)
 
-# ---- 9. Selección de nodo y justificación ----
+# ---- 9. Selección de nodo, estado y justificación ----
 node_selected = st.text_input("¿Sobre qué subpregunta quieres profundizar?")
 if st.button("Seleccionar subpregunta"):
     st.session_state["tracker"].log_event("seleccion", node_selected, marco=marco)
     st.session_state["node_selected"] = node_selected
 
+# --- GESTIÓN DE ESTADO EPISTÉMICO DEL NODO SELECCIONADO ---
 if "node_selected" in st.session_state:
+    st.subheader("Estado epistémico de la subpregunta")
+    estados = {
+        "Abierta": "🟢 Abierta",
+        "Resuelta": "🔵 Resuelta",
+        "En disputa": "🟠 En disputa",
+        "Suspendida": "⚪ Suspendida"
+    }
+    estado_actual = st.session_state["tracker"].log.get("node_states", {}).get(
+        st.session_state["node_selected"], {}
+    ).get("state", "Abierta")
+    nuevo_estado = st.radio(
+        "Selecciona el estado actual de esta subpregunta:",
+        list(estados.keys()),
+        index=list(estados.keys()).index(estado_actual) if estado_actual in estados else 0,
+        format_func=lambda x: estados[x]
+    )
+    if st.button("Actualizar estado epistémico"):
+        st.session_state["tracker"].set_node_state(st.session_state["node_selected"], nuevo_estado)
+        st.success(f"Estado actualizado a: {estados[nuevo_estado]}")
+
+    # --- Justificación de la subpregunta ---
     st.subheader("Justifica tu selección antes de continuar")
     justificacion = st.text_area("Explica por qué esta subpregunta es clave para la indagación:")
     if st.button("Guardar justificación y avanzar"):
@@ -137,6 +154,29 @@ if "node_selected" in st.session_state:
             parent_node=st.session_state["node_selected"]
         )
         st.success("Justificación registrada. Puedes avanzar.")
+
+    # --- FEEDBACK PLURAL: comentarios de pares/docente/IA sobre el nodo ---
+    st.subheader("Feedback plural (pares/docente) sobre esta subpregunta")
+    comment_text = st.text_area("Deja aquí tu comentario sobre la subpregunta, respuesta o reflexión del usuario:", key="comment_text")
+    comment_author = st.text_input("Tu nombre o alias:", key="comment_author")
+    tipo = st.radio("Tipo de feedback:", ("Humano (pares/docente)", "IA"), key="tipo_feedback")
+    if st.button("Añadir comentario"):
+        st.session_state["tracker"].add_feedback(
+            st.session_state["node_selected"],
+            comment_text,
+            author=comment_author if comment_author else "Anónimo",
+            tipo=tipo
+        )
+        st.success("¡Comentario añadido!")
+
+    # Mostrar comentarios previos
+    feedbacks = st.session_state["tracker"].log.get("feedback", {}).get(st.session_state["node_selected"], [])
+    if feedbacks:
+        st.markdown("#### Comentarios recibidos:")
+        for fb in feedbacks:
+            st.markdown(f"- _{fb['author']} ({fb['tipo']}):_ {fb['comment']}")
+    else:
+        st.info("Aún no hay comentarios en esta subpregunta.")
 
 # ---- 10. Generar y comparar respuestas multiperspectiva ----
 def generar_respuestas_multiperspectiva(nodo, marco, chat_fn):
@@ -214,4 +254,4 @@ if st.button("Descargar informe deliberativo en HTML"):
 if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
 
-st.info("Esta versión integra deliberación plural, trazabilidad y exportación HTML enriquecida. Puedes seguir con feedback plural, EEE o colaboración si lo deseas.")
+st.info("Versión en construcción: ahora con estados epistémicos, feedback plural y trazabilidad completa.")
