@@ -99,20 +99,60 @@ st.header("2. Explora los árboles desde diferentes perspectivas")
 marco = st.selectbox("Elige perspectiva de análisis", list(trees.keys()))
 st.subheader(f"Árbol de subpreguntas ({marco})")
 
-# --- MODIFICACIÓN: función para mostrar estado epistémico en listado ---
-def render_list(node, indent=0):
-    node_name = node.get('node', '<sin título>')
+# ---- FUNCION MEJORADA PARA EL GRAFO ----
+def build_dot(node):
+    node_name = node.get("node", "<sin etiqueta>")
     node_state = st.session_state["tracker"].log.get("node_states", {}).get(node_name, {}).get("state", "Abierta")
-    emoji = {"Abierta":"🟢", "Resuelta":"🔵", "En disputa":"🟠", "Suspendida":"⚪"}.get(node_state,"🟢")
-    st.markdown(" " * indent * 2 + f"- {emoji} **{node_name}**")
-    for c in node.get("children", []):
-        render_list(c, indent + 1)
+    color_map = {
+        "Abierta": "limegreen",
+        "Resuelta": "deepskyblue",
+        "En disputa": "orange",
+        "Suspendida": "gray"
+    }
+    emoji_map = {
+        "Abierta": "🟢",
+        "Resuelta": "🔵",
+        "En disputa": "🟠",
+        "Suspendida": "⚪"
+    }
+    color = color_map.get(node_state, "black")
+    emoji = emoji_map.get(node_state, "🟢")
+    label = f"{emoji} {node_name}"
+
+    dot = f'"{label}" [style=filled, fillcolor={color}, shape=box, fontname="Arial", fontsize=14];\n'
+    for child in node.get("children", []):
+        c_label = child.get("node", "<sin etiqueta>")
+        child_state = st.session_state["tracker"].log.get("node_states", {}).get(c_label, {}).get("state", "Abierta")
+        c_emoji = emoji_map.get(child_state, "🟢")
+        c_label_full = f"{c_emoji} {c_label}"
+        dot += f'"{label}" -> "{c_label_full}";\n'
+        dot += build_dot(child)
+    return dot
 
 root = trees[marco]
-dot = f"digraph G {{\n{build_dot(root)}}}"
+dot = f'digraph G {{\nrankdir=TB;\nnode [style=filled, fontname="Arial"];\n{build_dot(root)}}}'
 st.graphviz_chart(dot, use_container_width=True)
 
+# --- LEYENDA DE COLORES Y EMOJIS DEL GRAFO ---
+with st.expander("Ver leyenda de colores del grafo"):
+    st.markdown(
+        """
+        **🟢 Abierta**: Subpregunta aún en análisis  
+        **🔵 Resuelta**: Subpregunta cerrada/resuelta  
+        **🟠 En disputa**: Subpregunta en debate o sin consenso  
+        **⚪ Suspendida**: Subpregunta postergada/no relevante  
+        """
+    )
+
+# Listado anidado con emoji
 with st.expander("Mostrar subpreguntas en formato de lista"):
+    def render_list(node, indent=0):
+        node_name = node.get('node', '<sin título>')
+        node_state = st.session_state["tracker"].log.get("node_states", {}).get(node_name, {}).get("state", "Abierta")
+        emoji = {"Abierta":"🟢", "Resuelta":"🔵", "En disputa":"🟠", "Suspendida":"⚪"}.get(node_state,"🟢")
+        st.markdown(" " * indent * 2 + f"- {emoji} **{node_name}**")
+        for c in node.get("children", []):
+            render_list(c, indent + 1)
     render_list(root)
 
 # ---- 9. Selección de nodo, estado y justificación ----
@@ -254,4 +294,4 @@ if st.button("Descargar informe deliberativo en HTML"):
 if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
 
-st.info("Versión en construcción: ahora con estados epistémicos, feedback plural y trazabilidad completa.")
+st.info("Versión en construcción: ahora con estados epistémicos, feedback plural, colores y emojis en el árbol deliberativo.")
