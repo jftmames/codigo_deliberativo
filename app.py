@@ -21,6 +21,12 @@ mode = st.sidebar.selectbox(
 st.sidebar.markdown("---")
 st.sidebar.info("Grupo de Investigación en IA.")
 
+# ---- Opcional: Botón para reset total manual ----
+if st.sidebar.button("🔄 Nuevo razonamiento / Reset"):
+    for k in list(st.session_state.keys()):
+        del st.session_state[k]
+    st.experimental_rerun()
+
 # ---- 2. Título principal ----
 st.title("🧠 Código Deliberativo para Pensamiento Crítico")
 st.markdown(
@@ -52,11 +58,18 @@ if not root_question:
     st.warning("🛈 Necesitamos una pregunta raíz para continuar.")
     st.stop()
 
-# ---- 4. Inicializa Reasoning Tracker ----
-if "tracker" not in st.session_state:
+# ---- RESET AUTOMÁTICO AL CAMBIAR DE PREGUNTA ----
+if (
+    "last_root_question" not in st.session_state
+    or st.session_state["last_root_question"] != root_question
+):
+    # Resetea el tracker y los campos relacionados
     st.session_state["tracker"] = ReasoningTracker(root_question)
+    st.session_state["last_root_question"] = root_question
+    st.session_state.pop("node_selected", None)
+    st.session_state.pop("respuestas_multiperspectiva", None)
 
-# ---- 5. Preparación OpenAI ----
+# ---- 4. Preparación OpenAI ----
 openai.api_key = os.getenv("OPENAI_API_KEY")
 def chat(messages, max_tokens=500):
     return openai.chat.completions.create(
@@ -66,14 +79,14 @@ def chat(messages, max_tokens=500):
         max_tokens=max_tokens,
     )
 
-# ---- 6. Definir marcos multiperspectiva ----
+# ---- 5. Definir marcos multiperspectiva ----
 PERSPECTIVES = {
     "Ética": "Desde una perspectiva ética (deontología, utilitarismo, ética del cuidado)...",
     "Histórico-Social": "Desde una perspectiva histórica o sociopolítica relevante...",
     "Epistemológica": "Desde una perspectiva crítica epistemológica o filosófica..."
 }
 
-# ---- 7. Generación de árboles multiperspectiva ----
+# ---- 6. Generación de árboles multiperspectiva ----
 def generate_trees(root_question, chat_fn):
     trees = {}
     for marco, intro in PERSPECTIVES.items():
@@ -94,12 +107,11 @@ def generate_trees(root_question, chat_fn):
 with st.spinner("Generando árboles multiperspectiva…"):
     trees = generate_trees(root_question, chat)
 
-# ---- 8. Visualización y navegación ----
+# ---- 7. Visualización y navegación ----
 st.header("2. Explora los árboles desde diferentes perspectivas")
 marco = st.selectbox("Elige perspectiva de análisis", list(trees.keys()))
 st.subheader(f"Árbol de subpreguntas ({marco})")
 
-# ---- FUNCION MEJORADA PARA EL GRAFO ----
 def build_dot(node):
     node_name = node.get("node", "<sin etiqueta>")
     node_state = st.session_state["tracker"].log.get("node_states", {}).get(node_name, {}).get("state", "Abierta")
@@ -133,7 +145,6 @@ root = trees[marco]
 dot = f'digraph G {{\nrankdir=TB;\nnode [style=filled, fontname="Arial"];\n{build_dot(root)}}}'
 st.graphviz_chart(dot, use_container_width=True)
 
-# --- LEYENDA DE COLORES Y EMOJIS DEL GRAFO ---
 with st.expander("Ver leyenda de colores del grafo"):
     st.markdown(
         """
@@ -144,7 +155,6 @@ with st.expander("Ver leyenda de colores del grafo"):
         """
     )
 
-# Listado anidado con emoji
 with st.expander("Mostrar subpreguntas en formato de lista"):
     def render_list(node, indent=0):
         node_name = node.get('node', '<sin título>')
@@ -155,13 +165,12 @@ with st.expander("Mostrar subpreguntas en formato de lista"):
             render_list(c, indent + 1)
     render_list(root)
 
-# ---- 9. Selección de nodo, estado y justificación ----
+# ---- 8. Selección de nodo, estado y justificación ----
 node_selected = st.text_input("¿Sobre qué subpregunta quieres profundizar?")
 if st.button("Seleccionar subpregunta"):
     st.session_state["tracker"].log_event("seleccion", node_selected, marco=marco)
     st.session_state["node_selected"] = node_selected
 
-# --- GESTIÓN DE ESTADO EPISTÉMICO DEL NODO SELECCIONADO ---
 if "node_selected" in st.session_state:
     st.subheader("Estado epistémico de la subpregunta")
     estados = {
@@ -183,7 +192,6 @@ if "node_selected" in st.session_state:
         st.session_state["tracker"].set_node_state(st.session_state["node_selected"], nuevo_estado)
         st.success(f"Estado actualizado a: {estados[nuevo_estado]}")
 
-    # --- Justificación de la subpregunta ---
     st.subheader("Justifica tu selección antes de continuar")
     justificacion = st.text_area("Explica por qué esta subpregunta es clave para la indagación:")
     if st.button("Guardar justificación y avanzar"):
@@ -195,7 +203,6 @@ if "node_selected" in st.session_state:
         )
         st.success("Justificación registrada. Puedes avanzar.")
 
-    # --- FEEDBACK PLURAL: comentarios de pares/docente/IA sobre el nodo ---
     st.subheader("Feedback plural (pares/docente) sobre esta subpregunta")
     comment_text = st.text_area("Deja aquí tu comentario sobre la subpregunta, respuesta o reflexión del usuario:", key="comment_text")
     comment_author = st.text_input("Tu nombre o alias:", key="comment_author")
@@ -209,7 +216,6 @@ if "node_selected" in st.session_state:
         )
         st.success("¡Comentario añadido!")
 
-    # Mostrar comentarios previos
     feedbacks = st.session_state["tracker"].log.get("feedback", {}).get(st.session_state["node_selected"], [])
     if feedbacks:
         st.markdown("#### Comentarios recibidos:")
@@ -218,7 +224,7 @@ if "node_selected" in st.session_state:
     else:
         st.info("Aún no hay comentarios en esta subpregunta.")
 
-# ---- 10. Generar y comparar respuestas multiperspectiva ----
+# ---- 9. Generar y comparar respuestas multiperspectiva ----
 def generar_respuestas_multiperspectiva(nodo, marco, chat_fn):
     prompt = (
         f"Analiza la siguiente cuestión desde tres perspectivas.\n"
@@ -245,7 +251,6 @@ if "node_selected" in st.session_state:
             st.session_state["node_selected"], marco, chat
         )
         st.session_state["respuestas_multiperspectiva"] = respuestas
-        # Registrar en el tracker
         st.session_state["tracker"].log_event(
             "respuestas_multiperspectiva",
             respuestas,
@@ -281,7 +286,7 @@ if "respuestas_multiperspectiva" in st.session_state:
         )
         st.success("Elección y reflexión registradas.")
 
-# ---- 11. Exportación y visualización de Reasoning Tracker ----
+# ---- 10. Exportación y visualización de Reasoning Tracker ----
 st.header("3. Exporta y revisa tu proceso deliberativo")
 razonamiento = st.session_state["tracker"].export()
 st.download_button("Descargar razonamiento (JSON)", razonamiento, file_name="razonamiento.json")
@@ -295,3 +300,4 @@ if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
 
 st.info("Versión en construcción: ahora con estados epistémicos, feedback plural, colores y emojis en el árbol deliberativo.")
+
