@@ -46,7 +46,6 @@ class ReasoningTracker:
         })
 
     def set_node_state(self, node, state):
-        """Establece el estado epistémico de un nodo/subpregunta."""
         self.log["node_states"][node] = {
             "state": state,
             "timestamp": datetime.utcnow().isoformat()
