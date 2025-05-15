@@ -9,7 +9,9 @@ class ReasoningTracker:
             "responses": {},
             "focus": [],
             "times": [],
-            "steps": []  # Para registrar cada acción deliberativa
+            "steps": [],       # Registro de acciones deliberativas
+            "feedback": {},    # Feedback plural por nodo o paso
+            "node_states": {}  # Estado epistémico por nodo
         }
 
     def log_inquiry(self, tree):
@@ -33,9 +35,26 @@ class ReasoningTracker:
             "parent_node": parent_node
         })
 
+    def add_feedback(self, node_or_step_id, comment, author="Anónimo", tipo="Humano"):
+        """Registra un comentario/feedback plural sobre un nodo o paso."""
+        if node_or_step_id not in self.log["feedback"]:
+            self.log["feedback"][node_or_step_id] = []
+        self.log["feedback"][node_or_step_id].append({
+            "comment": comment,
+            "author": author,
+            "tipo": tipo,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
+    def set_node_state(self, node, state):
+        """Establece el estado epistémico de un nodo/subpregunta."""
+        self.log["node_states"][node] = {
+            "state": state,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
     def _stamp(self, evt):
         self.log["times"].append({evt: datetime.utcnow().isoformat()})
 
     def export(self):
         return json.dumps(self.log, ensure_ascii=False, indent=2)
-
