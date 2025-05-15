@@ -19,10 +19,12 @@ class ReasoningTracker:
         self._stamp("inquiry")
 
     def log_responses(self, resp):
+        """Registra o actualiza todas las respuestas multiperspectiva."""
         self.log["responses"] = resp
         self._stamp("responses")
 
     def log_focus_change(self, s):
+        """Registra sugerencias de reformulación/foco (puede ser lista o string)."""
         self.log["focus"].append(s)
         self._stamp("focus")
 
