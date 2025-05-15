@@ -19,7 +19,7 @@ mode = st.sidebar.selectbox(
     ["Asistido (básico)", "Guiado (intermedio)", "Exploratorio (avanzado)"]
 )
 st.sidebar.markdown("---")
-st.sidebar.info("Asegúrate de haber configurado tu variable de entorno `OPENAI_API_KEY`.")
+st.sidebar.info("Grupo de Investigación en IA.")
 
 # ---- 2. Título principal ----
 st.title("🧠 Código Deliberativo para Pensamiento Crítico")
