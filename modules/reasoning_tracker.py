@@ -9,9 +9,9 @@ class ReasoningTracker:
             "responses": {},
             "focus": [],
             "times": [],
-            "steps": [],       # Registro de acciones deliberativas
-            "feedback": {},    # Feedback plural por nodo o paso
-            "node_states": {}  # Estado epistémico por nodo
+            "steps": [],
+            "feedback": {},
+            "node_states": {}
         }
 
     def log_inquiry(self, tree):
