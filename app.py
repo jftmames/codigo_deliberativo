@@ -51,7 +51,11 @@ if not root_question:
     st.warning("🛈 Necesitamos una pregunta raíz para continuar.")
     st.stop()
 
-# ---- 4. Preparación OpenAI ----
+# ---- 4. Inicializa Reasoning Tracker (debe ir después de definir root_question) ----
+if "tracker" not in st.session_state:
+    st.session_state["tracker"] = ReasoningTracker(root_question)
+
+# ---- 5. Preparación OpenAI ----
 openai.api_key = os.getenv("OPENAI_API_KEY")
 def chat(messages, max_tokens=500):
     return openai.chat.completions.create(
@@ -60,10 +64,6 @@ def chat(messages, max_tokens=500):
         temperature=0.7,
         max_tokens=max_tokens,
     )
-
-# ---- 5. Inicializa Reasoning Tracker ----
-if "tracker" not in st.session_state:
-    st.session_state["tracker"] = ReasoningTracker()
 
 # ---- 6. Definir marcos multiperspectiva ----
 PERSPECTIVES = {
@@ -122,14 +122,14 @@ with st.expander("Mostrar subpreguntas en formato de lista"):
 # ---- 9. Selección de nodo y justificación ----
 node_selected = st.text_input("¿Sobre qué subpregunta quieres profundizar?")
 if st.button("Seleccionar subpregunta"):
-    st.session_state["tracker"].add_event("seleccion", node_selected, marco=marco)
+    st.session_state["tracker"].log_event("seleccion", node_selected, marco=marco)
     st.session_state["node_selected"] = node_selected
 
 if "node_selected" in st.session_state:
     st.subheader("Justifica tu selección antes de continuar")
     justificacion = st.text_area("Explica por qué esta subpregunta es clave para la indagación:")
     if st.button("Guardar justificación y avanzar"):
-        st.session_state["tracker"].add_event(
+        st.session_state["tracker"].log_event(
             "justificacion",
             justificacion,
             marco=marco,
@@ -165,7 +165,7 @@ if "node_selected" in st.session_state:
         )
         st.session_state["respuestas_multiperspectiva"] = respuestas
         # Registrar en el tracker
-        st.session_state["tracker"].add_event(
+        st.session_state["tracker"].log_event(
             "respuestas_multiperspectiva",
             respuestas,
             marco=marco,
@@ -189,7 +189,7 @@ if "respuestas_multiperspectiva" in st.session_state:
         key="justificacion_perspectiva"
     )
     if st.button("Registrar elección y reflexión"):
-        st.session_state["tracker"].add_event(
+        st.session_state["tracker"].log_event(
             "eleccion_perspectiva",
             {
                 "perspectiva": seleccion_usuario,
@@ -203,7 +203,7 @@ if "respuestas_multiperspectiva" in st.session_state:
 # ---- 11. Exportación y visualización de Reasoning Tracker ----
 st.header("3. Exporta y revisa tu proceso deliberativo")
 if st.button("Exportar proceso deliberativo"):
-    razonamiento = st.session_state["tracker"].export_json()
+    razonamiento = st.session_state["tracker"].export()
     st.download_button("Descargar razonamiento (JSON)", razonamiento, file_name="razonamiento.json")
 
 if st.checkbox("Ver historial de razonamiento"):
