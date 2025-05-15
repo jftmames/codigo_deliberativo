@@ -208,5 +208,3 @@ if st.button("Exportar proceso deliberativo"):
 
 if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
-
-st.info("Esta versión integra deliberación plural y trazabilidad. Siguiente paso sugerido: feedback plural, EEE, panel colaborativo o exportación HTML enriquecida.")
