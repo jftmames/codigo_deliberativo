@@ -36,7 +36,6 @@ class ReasoningTracker:
         })
 
     def add_feedback(self, node_or_step_id, comment, author="Anónimo", tipo="Humano"):
-        """Registra un comentario/feedback plural sobre un nodo o paso."""
         if node_or_step_id not in self.log["feedback"]:
             self.log["feedback"][node_or_step_id] = []
         self.log["feedback"][node_or_step_id].append({
