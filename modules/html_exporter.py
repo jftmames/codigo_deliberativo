@@ -90,8 +90,16 @@ def generate_html_report(reasoning_log):
     html += "</div>"
 
     html += "<div class='block'><h2>5. Foco/Evolución (si aplica)</h2><ul>"
-    for foco in reasoning_log.get("focus", []):
-        html += f"<li>{foco}</li>"
+    focus = reasoning_log.get("focus", [])
+    if focus:
+        for foco in focus:
+            if isinstance(foco, list):
+                for elem in foco:
+                    html += f"<li>{json.dumps(elem, ensure_ascii=False)}</li>"
+            else:
+                html += f"<li>{json.dumps(foco, ensure_ascii=False)}</li>"
+    else:
+        html += "<li>No se registraron reformulaciones o focos.</li>"
     html += "</ul></div>"
 
     html += "<div class='block'><h2>6. Feedback plural recibido</h2>"
