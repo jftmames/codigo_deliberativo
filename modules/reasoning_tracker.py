@@ -38,3 +38,4 @@ class ReasoningTracker:
 
     def export(self):
         return json.dumps(self.log, ensure_ascii=False, indent=2)
+
