@@ -1,5 +1,9 @@
-# modules/html_exporter.py
+import json
+
 def render_html_tree(node):
+    """Renderiza recursivamente el árbol deliberativo en formato HTML anidado."""
+    if node is None:
+        return ""
     html = f"<li><strong>{node.get('node','')}</strong>"
     children = node.get("children", [])
     if children:
@@ -11,9 +15,10 @@ def render_html_tree(node):
     return html
 
 def generate_html_report(reasoning_log):
-    root = None
-    if reasoning_log["inquiry"]:
-        root = reasoning_log["inquiry"][0] if isinstance(reasoning_log["inquiry"], list) else reasoning_log["inquiry"]
+    # Seguridad: manejo de casos None
+    inquiry = reasoning_log.get('inquiry', None)
+    if inquiry:
+        root = inquiry[0] if isinstance(inquiry, list) else inquiry
     else:
         root = {"node": "<sin árbol>", "children": []}
 
@@ -40,10 +45,10 @@ def generate_html_report(reasoning_log):
 
     <div class='block'>
       <h2>1. Pregunta Raíz</h2>
-      <p>{reasoning_log['root']}</p>
+      <p>{reasoning_log.get('root', '')}</p>
     </div>
     <div class='block'>
-      <h2>2. Árbol de Subpreguntas ({len(reasoning_log.get('inquiry',[]))})</h2>
+      <h2>2. Árbol de Subpreguntas</h2>
       <ul>
       {render_html_tree(root)}
       </ul>
@@ -63,13 +68,13 @@ def generate_html_report(reasoning_log):
         html += "<tr>"
         html += f"<td>{step.get('timestamp','')}</td>"
         html += f"<td>{step.get('event_type','')}</td>"
-        # Recorte/resumen inteligente para que no se rompa visualmente
+        # Resumen inteligente para que no se rompa visualmente
         cont = step.get('content','')
         if isinstance(cont, dict):
             cont = json.dumps(cont, ensure_ascii=False)
         elif isinstance(cont, list):
             cont = "; ".join(str(x) for x in cont)
-        html += f"<td>{cont[:400]}{'...' if len(str(cont)) > 400 else ''}</td>"
+        html += f"<td>{str(cont)[:400]}{'...' if len(str(cont)) > 400 else ''}</td>"
         html += f"<td>{step.get('marco','')}</td>"
         html += f"<td>{step.get('parent_node','')}</td>"
         html += "</tr>"
