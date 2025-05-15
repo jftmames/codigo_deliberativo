@@ -8,7 +8,8 @@ class ReasoningTracker:
             "inquiry": None,
             "responses": {},
             "focus": [],
-            "times": []
+            "times": [],
+            "steps": []  # Para registrar cada acción deliberativa
         }
 
     def log_inquiry(self, tree):
@@ -22,6 +23,15 @@ class ReasoningTracker:
     def log_focus_change(self, s):
         self.log["focus"].append(s)
         self._stamp("focus")
+
+    def log_event(self, event_type, content, marco=None, parent_node=None):
+        self.log["steps"].append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": event_type,
+            "content": content,
+            "marco": marco,
+            "parent_node": parent_node
+        })
 
     def _stamp(self, evt):
         self.log["times"].append({evt: datetime.utcnow().isoformat()})
