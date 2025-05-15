@@ -1,7 +1,6 @@
 import json
 
 def render_html_tree(node):
-    """Renderiza recursivamente el árbol deliberativo en formato HTML anidado."""
     if node is None:
         return ""
     html = f"<li><strong>{node.get('node','')}</strong>"
@@ -15,7 +14,6 @@ def render_html_tree(node):
     return html
 
 def generate_html_report(reasoning_log):
-    # Seguridad: manejo de casos None
     inquiry = reasoning_log.get('inquiry', None)
     if inquiry:
         root = inquiry[0] if isinstance(inquiry, list) else inquiry
@@ -68,7 +66,6 @@ def generate_html_report(reasoning_log):
         html += "<tr>"
         html += f"<td>{step.get('timestamp','')}</td>"
         html += f"<td>{step.get('event_type','')}</td>"
-        # Resumen inteligente para que no se rompa visualmente
         cont = step.get('content','')
         if isinstance(cont, dict):
             cont = json.dumps(cont, ensure_ascii=False)
@@ -95,6 +92,24 @@ def generate_html_report(reasoning_log):
     html += "<div class='block'><h2>5. Foco/Evolución (si aplica)</h2><ul>"
     for foco in reasoning_log.get("focus", []):
         html += f"<li>{foco}</li>"
+    html += "</ul></div>"
+
+    html += "<div class='block'><h2>6. Feedback plural recibido</h2>"
+    feedback = reasoning_log.get("feedback", {})
+    if feedback:
+        for nodo, comentarios in feedback.items():
+            html += f"<strong>{nodo}</strong><ul>"
+            for fb in comentarios:
+                html += f"<li><b>{fb.get('author','Anónimo')} ({fb.get('tipo','')})</b>: {fb.get('comment','')}</li>"
+            html += "</ul>"
+    else:
+        html += "<p>No se registraron comentarios.</p>"
+    html += "</div>"
+
+    html += "<div class='block'><h2>7. Estado epistémico de cada subpregunta</h2><ul>"
+    node_states = reasoning_log.get("node_states", {})
+    for node, data in node_states.items():
+        html += f"<li><b>{node}</b>: {data['state']} (actualizado: {data['timestamp']})</li>"
     html += "</ul></div>"
 
     html += "<hr/><p style='color:#888'>Generado automáticamente con Código Deliberativo IA</p>"
