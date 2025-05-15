@@ -5,9 +5,15 @@ import openai
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-
 from modules.reasoning_tracker import ReasoningTracker
 from modules.html_exporter import generate_html_report
+from modules.usage_metrics import UsageMetrics
+
+# ---- Helper para contar nodos en árbol ----
+def count_nodes(tree):
+    if not tree or not isinstance(tree, dict):
+        return 0
+    return 1 + sum([count_nodes(child) for child in tree.get("children", [])])
 
 # ---- 0. Configuración de página ----
 st.set_page_config(
@@ -66,11 +72,20 @@ if (
     "last_root_question" not in st.session_state
     or st.session_state["last_root_question"] != root_question
 ):
-    # Resetea el tracker y los campos relacionados
     st.session_state["tracker"] = ReasoningTracker(root_question)
     st.session_state["last_root_question"] = root_question
     st.session_state.pop("node_selected", None)
     st.session_state.pop("respuestas_multiperspectiva", None)
+
+# ---- INICIALIZACIÓN USAGE METRICS ----
+if "usage" not in st.session_state:
+    st.session_state["usage"] = UsageMetrics()
+# ---- REGISTRO DE NUEVA SESIÓN ----
+if (
+    "last_root_question" not in st.session_state
+    or st.session_state["last_root_question"] != root_question
+):
+    st.session_state["usage"].new_session(root_question)
 
 # ---- 4. Preparación OpenAI ----
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -109,6 +124,7 @@ def generate_trees(root_question, chat_fn):
 
 with st.spinner("Generando árboles multiperspectiva…"):
     trees = generate_trees(root_question, chat)
+    st.session_state["usage"].add_nodes(sum([count_nodes(tree) for tree in trees.values()]))
 
 # ---- 7. Visualización y navegación ----
 st.header("2. Explora los árboles desde diferentes perspectivas")
@@ -168,6 +184,15 @@ with st.expander("Mostrar subpreguntas en formato de lista"):
             render_list(c, indent + 1)
     render_list(root)
 
+# ---- Indicadores de uso/impacto ----
+with st.expander("Indicadores de uso / impacto"):
+    m = st.session_state["usage"].metrics
+    st.metric("Sesiones totales", m["total_sessions"])
+    st.metric("Feedback total", m["total_feedback"])
+    st.metric("Nodos/subpreguntas tratados", m["total_nodes"])
+    st.write("Historial de sesiones (últimas 5):")
+    st.write(m["session_logs"][-5:])
+
 # ---- 8. Selección de nodo, estado y justificación ----
 node_selected = st.text_input("¿Sobre qué subpregunta quieres profundizar?")
 if st.button("Seleccionar subpregunta"):
@@ -217,6 +242,7 @@ if "node_selected" in st.session_state:
             author=comment_author if comment_author else "Anónimo",
             tipo=tipo
         )
+        st.session_state["usage"].add_feedback()
         st.success("¡Comentario añadido!")
 
     feedbacks = st.session_state["tracker"].log.get("feedback", {}).get(st.session_state["node_selected"], [])
@@ -302,6 +328,31 @@ if st.button("Descargar informe deliberativo en HTML"):
 if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
 
+# ---- Reporte de impacto ----
+def generar_reporte_impacto(metrics):
+    html = f"""
+    <html>
+    <head><meta charset='utf-8'><title>Reporte de Impacto</title></head>
+    <body>
+    <h1>Reporte de Impacto - Código Deliberativo</h1>
+    <ul>
+      <li><b>Sesiones totales:</b> {metrics["total_sessions"]}</li>
+      <li><b>Nodos/subpreguntas tratadas:</b> {metrics["total_nodes"]}</li>
+      <li><b>Feedback recibido:</b> {metrics["total_feedback"]}</li>
+    </ul>
+    <h2>Historial de sesiones recientes</h2>
+    <ul>
+    {''.join([f"<li>{s['root']} ({s['timestamp']})</li>" for s in metrics['session_logs'][-10:]])}
+    </ul>
+    </body>
+    </html>
+    """
+    return html
+
+if st.button("Exportar reporte de impacto (HTML)"):
+    html_report = generar_reporte_impacto(st.session_state["usage"].metrics)
+    st.download_button("Descargar reporte de impacto", data=html_report, file_name="reporte_impacto.html", mime="text/html")
+
 # ---- DASHBOARD EEE ----
 st.header("4. Índice de Equilibrio Erotético (EEE) y Dashboard Epistémico")
 
@@ -312,7 +363,6 @@ def calcular_eee(tracker):
     feedback = log.get("feedback", {})
     node_states = log.get("node_states", {})
 
-    # Profundidad estructural: máxima profundidad del árbol
     def depth(n):
         if not n or not isinstance(n, dict):
             return 0
@@ -320,20 +370,16 @@ def calcular_eee(tracker):
     profundidad = depth(root) if root else 0
     norm_prof = min(profundidad / 6, 1)
 
-    # Pluralidad semántica: nº de respuestas por nodo promedio
     resp = log.get("responses", {})
     pluralidad = np.mean([len(lst) for lst in resp.values()]) if resp else 0
     norm_plur = min(pluralidad / 3, 1)
 
-    # Trazabilidad razonadora: nº de pasos/logs
     trazabilidad = len(steps)
     norm_traz = min(trazabilidad / 12, 1)
 
-    # Reversibilidad efectiva: nº de nodos revisitados o cambiados de estado
     cambios_estado = sum([1 for s in steps if s["event_type"] in ["estado_modificado", "reformulacion"]])
     norm_rev = min((cambios_estado + 1) / (profundidad + 1), 1) if profundidad else 0
 
-    # Robustez ante disenso: nº de nodos marcados 'En disputa'
     disputas = sum(1 for v in node_states.values() if v.get("state") == "En disputa")
     total_nodos = len(node_states) if node_states else 1
     norm_rob = min(disputas / total_nodos, 1) if total_nodos else 0
@@ -399,4 +445,33 @@ if eee_dict['EEE Global'] < 0.7:
 else:
     st.success("¡Excelente equilibrio epistémico! Sigue manteniendo diversidad, profundidad y trazabilidad en tus deliberaciones.")
 
-st.info("Versión en construcción: ahora con dashboard EEE, estados epistémicos, feedback plural y visualización enriquecida.")
+# ---- GUÍA PARA ENTIDADES ----
+with st.expander("Guía rápida para centros educativos y profesorado"):
+    st.markdown("""
+    ### ¿Cómo puede tu centro aprovechar el Código Deliberativo?
+    1. **Pilotaje en clase**: Usa la app como actividad estructurada de pensamiento crítico o evaluación por proyectos.
+    2. **Personalización**: Solicita adaptación del flujo/métricas a tu contexto curricular o grupo.
+    3. **Recogida de evidencias**: Exporta razonamientos y reportes de impacto para portafolio de centro o innovación.
+    4. **Formación de docentes**: Solicita sesiones prácticas sobre uso y maximización del potencial deliberativo.
+    5. **Soporte y colaboración**: Contacta para adaptar la herramienta a proyectos o necesidades institucionales.
+    ---
+    **Contacto para adopción institucional y pilotaje:**  
+    *(Introduce tu email, web, formulario o canal de contacto)*
+    """)
+
+# ---- INSTRUCCIONES PILOTAJE ----
+with st.expander("Instrucciones para pilotaje colaborativo"):
+    st.markdown("""
+    ### ¿Cómo pilotar el Código Deliberativo en tu centro?
+    1. **Define el objetivo**: ¿Mejorar pensamiento crítico? ¿Evaluar razonamiento? ¿Detectar sesgos?
+    2. **Selecciona el grupo de usuarios**: (alumnos, docentes, grupos interdisciplinares).
+    3. **Programa sesiones de uso**: (pueden ser virtuales o presenciales, individuales o grupales).
+    4. **Recoge y comparte feedback**: Utiliza el panel de comentarios y exporta reportes de impacto.
+    5. **Evalúa el impacto**: Analiza las métricas del panel de indicadores.
+    6. **Comparte resultados y propuestas de mejora**: ¡Ayuda a evolucionar la herramienta!
+    ---
+    **¿Quieres que tu centro aparezca como caso de éxito?**  
+    Contacta y comparte tu experiencia.
+    """)
+
+st.info("Versión institucional: indicadores de uso, reporte de impacto, guía para centros y pilotaje colaborativo.")
