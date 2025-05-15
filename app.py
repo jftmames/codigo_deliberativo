@@ -2,7 +2,6 @@ import os
 import json
 import streamlit as st
 import openai
-import pandas as pd
 from modules.reasoning_tracker import ReasoningTracker
 
 # ---- 0. Configuración de página ----
@@ -138,7 +137,70 @@ if "node_selected" in st.session_state:
         )
         st.success("Justificación registrada. Puedes avanzar.")
 
-# ---- 10. Exportación y visualización de Reasoning Tracker ----
+# ---- 10. Generar y comparar respuestas multiperspectiva ----
+def generar_respuestas_multiperspectiva(nodo, marco, chat_fn):
+    prompt = (
+        f"Analiza la siguiente cuestión desde tres perspectivas.\n"
+        f"Subpregunta: “{nodo}”\n"
+        f"Marco seleccionado: {marco}\n"
+        "Proporciona tres respuestas bien argumentadas y diferenciadas:\n"
+        "1. Perspectiva ética (deontología, utilitarismo, ética del cuidado).\n"
+        "2. Perspectiva histórico-sociopolítica relevante.\n"
+        "3. Perspectiva crítica epistemológica o filosófica.\n"
+        "Responde solo en JSON:\n"
+        '[{"label": "Ética", "text": "..."}, {"label": "Histórico-Social", "text": "..."}, {"label": "Epistemológica", "text": "..."}]'
+    )
+    r = chat_fn([{"role": "system", "content": prompt}], max_tokens=700)
+    try:
+        data = json.loads(r.choices[0].message.content)
+    except Exception:
+        data = []
+    return data
+
+if "node_selected" in st.session_state:
+    st.subheader("Genera y compara respuestas multiperspectiva")
+    if st.button("Obtener respuestas multiperspectiva"):
+        respuestas = generar_respuestas_multiperspectiva(
+            st.session_state["node_selected"], marco, chat
+        )
+        st.session_state["respuestas_multiperspectiva"] = respuestas
+        # Registrar en el tracker
+        st.session_state["tracker"].add_event(
+            "respuestas_multiperspectiva",
+            respuestas,
+            marco=marco,
+            parent_node=st.session_state["node_selected"]
+        )
+
+if "respuestas_multiperspectiva" in st.session_state:
+    st.markdown("### Respuestas contrastadas para la subpregunta seleccionada:")
+    for item in st.session_state["respuestas_multiperspectiva"]:
+        st.markdown(f"**{item['label']}**: {item['text']}")
+    st.info("Reflexiona y compara las respuestas antes de continuar.")
+
+    seleccion_usuario = st.radio(
+        "¿Cuál perspectiva te parece más fundamentada/interesante para este caso?",
+        [r["label"] for r in st.session_state["respuestas_multiperspectiva"]],
+        index=0,
+        key="seleccion_perspectiva"
+    )
+    justificacion_usuario = st.text_area(
+        "¿Por qué escoges esa perspectiva como la más relevante aquí? ¿Cambiaría algo si eligieras otra?",
+        key="justificacion_perspectiva"
+    )
+    if st.button("Registrar elección y reflexión"):
+        st.session_state["tracker"].add_event(
+            "eleccion_perspectiva",
+            {
+                "perspectiva": seleccion_usuario,
+                "justificacion": justificacion_usuario
+            },
+            marco=marco,
+            parent_node=st.session_state["node_selected"]
+        )
+        st.success("Elección y reflexión registradas.")
+
+# ---- 11. Exportación y visualización de Reasoning Tracker ----
 st.header("3. Exporta y revisa tu proceso deliberativo")
 if st.button("Exportar proceso deliberativo"):
     razonamiento = st.session_state["tracker"].export_json()
@@ -147,5 +209,4 @@ if st.button("Exportar proceso deliberativo"):
 if st.checkbox("Ver historial de razonamiento"):
     st.json(st.session_state["tracker"].log)
 
-st.info("Esta versión es la base deliberativa. Puedes continuar integrando: feedback plural, EEE, panel colaborativo y más.")
-
+st.info("Esta versión integra deliberación plural y trazabilidad. Siguiente paso sugerido: feedback plural, EEE, panel colaborativo o exportación HTML enriquecida.")
