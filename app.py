@@ -80,7 +80,6 @@ if (
 # ---- INICIALIZACIÓN USAGE METRICS ----
 if "usage" not in st.session_state:
     st.session_state["usage"] = UsageMetrics()
-# ---- REGISTRO DE NUEVA SESIÓN ----
 if (
     "last_root_question" not in st.session_state
     or st.session_state["last_root_question"] != root_question
@@ -125,6 +124,34 @@ def generate_trees(root_question, chat_fn):
 with st.spinner("Generando árboles multiperspectiva…"):
     trees = generate_trees(root_question, chat)
     st.session_state["usage"].add_nodes(sum([count_nodes(tree) for tree in trees.values()]))
+
+# ---- SUGERENCIAS DE REFORMULACIÓN DE FOCO (antes de visualización) ----
+def sugerir_reformulaciones(root_question, tree, perfil, chat_fn):
+    prompt = (
+        "Eres un Motor de Diálogo Adaptativo.\n"
+        f"Árbol (JSON): {json.dumps(tree, ensure_ascii=False)}\n"
+        f"Perfil: {perfil}\n\n"
+        "Si hay ambigüedad o margen de mejora, sugiere hasta 2 reformulaciones de la pregunta raíz.\n"
+        "Responde solo con JSON de lista:\n"
+        '[{"original":"…","suggestions":["…","…"]},…]'
+    )
+    r = chat_fn([{"role": "system", "content": prompt}], max_tokens=300)
+    try:
+        focus_suggestions = json.loads(r.choices[0].message.content)
+    except Exception:
+        focus_suggestions = []
+    return focus_suggestions
+
+with st.expander("¿Sugerencias de reformulación del foco o pregunta raíz?"):
+    focus_suggestions = sugerir_reformulaciones(root_question, trees["Ética"], mode, chat)
+    if focus_suggestions:
+        for s in focus_suggestions:
+            st.info(f"> **Original:** {s.get('original')}")
+            for sug in s.get("suggestions", []):
+                st.write(f"- {sug}")
+        st.session_state["tracker"].log_focus_change(focus_suggestions)
+    else:
+        st.success("No se necesitan reformulaciones.")
 
 # ---- 7. Visualización y navegación ----
 st.header("2. Explora los árboles desde diferentes perspectivas")
@@ -280,6 +307,12 @@ if "node_selected" in st.session_state:
             st.session_state["node_selected"], marco, chat
         )
         st.session_state["respuestas_multiperspectiva"] = respuestas
+
+        # --- REGISTRO EXPLÍCITO PARA EL INFORME ---
+        current_resps = st.session_state["tracker"].log.get("responses", {})
+        current_resps[st.session_state["node_selected"]] = respuestas
+        st.session_state["tracker"].log_responses(current_resps)
+
         st.session_state["tracker"].log_event(
             "respuestas_multiperspectiva",
             respuestas,
