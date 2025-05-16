@@ -508,3 +508,39 @@ with st.expander("Instrucciones para pilotaje colaborativo"):
     """)
 
 st.info("Versión institucional: indicadores de uso, reporte de impacto, guía para centros y pilotaje colaborativo.")
+with st.expander("Cumplimiento normativo y ético"):
+    st.markdown("""
+    ### Cumplimiento normativo y ético del Código Deliberativo Educativo
+
+    **Este sistema ha sido desarrollado y documentado para alinearse con:**
+    - **Reglamento (UE) 2024/1689 (AI Act)** sobre el uso seguro, transparente y no discriminatorio de sistemas de IA en entornos educativos.
+    - **Marco Europeo DigCompEdu**: especialmente en la promoción del pensamiento crítico, la auto-regulación, la colaboración y la evaluación formativa.
+    - **Marcos internacionales para IA generativa educativa** (UNESCO, OCDE, Australian Framework 2023).
+
+    ---
+    #### **Principios y garantías**
+    - **Transparencia:** El usuario siempre conoce cuándo interactúa con IA, y cada decisión de la herramienta es explicable y trazable.
+    - **Supervisión humana:** El sistema NO automatiza decisiones críticas ni evalúa automáticamente a los estudiantes; está pensado para apoyar el razonamiento deliberativo bajo control docente.
+    - **No discriminación ni sesgo:** El diseño y la documentación buscan minimizar riesgos de sesgo, discriminación o exclusión. Se fomenta el pensamiento plural y la revisión crítica.
+    - **Privacidad y protección de datos:** El MVP no almacena datos personales identificables ni resultados académicos reales. Todo razonamiento registrado es anónimo y con fines educativos.
+    - **Consentimiento informado:** El uso de la herramienta implica aceptar sus condiciones y entender que los resultados tienen finalidad formativa, no evaluativa.
+    - **Accesibilidad:** La interfaz busca ser usable por la mayor diversidad posible de usuarios. Se agradece cualquier sugerencia de mejora en accesibilidad.
+
+    ---
+    #### **Alineación con DigCompEdu**
+    - **Área 3 (Competencias de Enseñanza y Aprendizaje):** Promoción del pensamiento crítico, la reflexión y el debate fundamentado.
+    - **Área 4 (Evaluación y Feedback):** Facilita la co-evaluación, la autoevaluación y el feedback estructurado.
+    - **Áreas 5 y 6:** Fomento de la personalización, la autonomía y la inclusión digital.
+    
+    ---
+    #### **Gestión de riesgos**
+    - Se revisan periódicamente posibles sesgos, errores y malentendidos.  
+    - El sistema está en desarrollo activo y abierto a auditoría por la comunidad educativa.
+    - No se recomienda su uso como herramienta de calificación ni como único soporte para toma de decisiones pedagógicas relevantes.
+
+    ---
+    **Contacto para dudas, sugerencias o reporte de incidentes:**  
+    [Introduce tu email o formulario de contacto]
+
+    """)
+
