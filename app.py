@@ -42,6 +42,9 @@ st.markdown(
     """
     Esta aplicación te guía paso a paso para **estructurar**, **explorar** y **evaluar**
     procesos de indagación críticos, usando un modelo de IA deliberativa.
+    Al utilizar esta herramienta acepta que los resultados tienen fines estrictamente formativos. 
+    No almacenamos datos personales identificables ni resultados académicos oficiales. 
+    Su uso implica aceptación de nuestras condiciones éticas y de privacidad
     """
 )
 
